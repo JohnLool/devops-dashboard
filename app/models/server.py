@@ -3,7 +3,6 @@ from sqlalchemy import String, Integer, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
-from app.models import UserOrm
 
 
 class ServerOrm(Base):
@@ -20,4 +19,4 @@ class ServerOrm(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
-    owner: Mapped[UserOrm] = relationship("User", back_populates="servers")
+    owner: Mapped["UserOrm"] = relationship("User", back_populates="servers")

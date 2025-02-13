@@ -1,11 +1,7 @@
-from __future__ import annotations
 from app.core.database import Base
 from sqlalchemy import String, Boolean, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
-
-from app.models import ServerOrm
-
 
 
 class UserOrm(Base):
@@ -18,6 +14,6 @@ class UserOrm(Base):
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(onupdate=func.now())
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    servers: Mapped[list[ServerOrm]] = relationship("Server", back_populates="owner")
+    servers: Mapped[list["ServerOrm"]] = relationship("Server", back_populates="owner")

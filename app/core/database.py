@@ -6,6 +6,7 @@ from app.core.config import settings
 
 Base = declarative_base()
 
+
 engine = create_async_engine(
     url=settings.database_url,
     echo=True
