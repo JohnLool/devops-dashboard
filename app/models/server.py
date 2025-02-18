@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, ForeignKey
+from sqlalchemy import String, Integer, Text, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -17,6 +19,7 @@ class ServerOrm(Base):
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
-    owner: Mapped["UserOrm"] = relationship("User", back_populates="servers")
+    owner: Mapped["UserOrm"] = relationship("UserOrm", back_populates="servers")

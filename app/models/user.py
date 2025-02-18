@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.core.database import Base
 from sqlalchemy import String, Boolean, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,4 +18,4 @@ class UserOrm(Base):
     updated_at: Mapped[datetime | None] = mapped_column(onupdate=func.now())
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    servers: Mapped[list["ServerOrm"]] = relationship("Server", back_populates="owner")
+    servers: Mapped[list["ServerOrm"]] = relationship("ServerOrm", back_populates="owner")
