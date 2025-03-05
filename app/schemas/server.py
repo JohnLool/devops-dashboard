@@ -1,8 +1,7 @@
-from pydantic import BaseModel, constr
+from pydantic import BaseModel, constr, ConfigDict
 from datetime import datetime
 from typing import Optional
 
-from app.schemas.user import UserGet
 
 
 class ServerBase(BaseModel):
@@ -24,12 +23,10 @@ class ServerUpdate(ServerBase):
     ssh_private_key: str | None = None
 
 
-class ServerGet(ServerBase):
+class ServerOut(ServerBase):
     id: int
-    user: UserGet
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    owner_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True)

@@ -1,8 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, constr
-
-from app.schemas.server import ServerGet
+from pydantic import BaseModel, constr, ConfigDict
 
 
 class UserBase(BaseModel):
@@ -14,14 +12,12 @@ class UserCreate(UserBase):
     password: constr(min_length=5, max_length=16)
 
 
-class UserGet(UserBase):
+class UserOut(UserBase):
     id: int
-    server: list[ServerGet] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(UserBase):

@@ -19,6 +19,7 @@ class ServerOrm(Base):
     description: Mapped[str | None] = mapped_column(Text)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(onupdate=func.now())
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
