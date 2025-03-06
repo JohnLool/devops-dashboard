@@ -40,23 +40,15 @@ class BaseService(Generic[Repository]):
             return None
         return self.schema_out.model_validate(record)
 
-    async def get_all(self, *filters, options=None) -> List[SchemaOut]:
+    async def get_all(self, *filters) -> List[SchemaOut]:
         logger.info("Service: Getting all records")
-        records = await self.repository.get_all(*filters, options=options)
+        records = await self.repository.get_all(*filters)
         return [self.schema_out.model_validate(record) for record in records]
 
-    async def get_by_id(self, record_id: int, *filters, options=None) -> Optional[SchemaOut]:
+    async def get_by_id(self, record_id: int, *filters) -> Optional[SchemaOut]:
         logger.info(f"Service: Getting record by id {record_id}")
-        record = await self.repository.get_by_id(record_id, *filters, options=options)
+        record = await self.repository.get_by_id(record_id, *filters)
         if not record:
             logger.warning(f"Service: Record with id {record_id} not found")
             return None
         return self.schema_out.model_validate(record)
-
-    # async def get_by_username(self, username: str, *filters, options=None) -> Optional[SchemaOut]:
-    #     logger.info(f"Service: Getting record by username '{username}'")
-    #     record = await self.repository.get_by_username(username, *filters, options=options)
-    #     if not record:
-    #         logger.warning(f"Service: Record with username '{username}' not found")
-    #         return None
-    #     return self.schema_out.model_validate(record)

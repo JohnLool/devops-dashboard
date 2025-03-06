@@ -9,5 +9,5 @@ class ServerRepository(BaseRepository[ServerOrm]):
     def __init__(self, session: AsyncSession):
         super().__init__(session, ServerOrm)
 
-    async def get_by_owner(self, owner_id: str) -> Optional[ServerOrm]:
-        return await super().get_by_field('owner_id', owner_id)
+    async def get_by_owner(self, owner_id: str, *filters, options=None) -> Optional[ServerOrm]:
+        return await super().get_by_field('owner_id', owner_id, *filters, options=options)

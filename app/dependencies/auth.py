@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.models.user import UserOrm
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
-from app.dependencies.services import get_auth_service, get_user_service, get_owner_service, get_admin_service
+from app.dependencies.services import get_auth_service, get_user_service
 
 
 oauth2_user_scheme = OAuth2PasswordBearer(tokenUrl="users/login", auto_error=False)
@@ -23,4 +23,4 @@ async def get_current_user(
     if payload.get("role") != "user":
         return None
 
-    return await user_service.get_by_username(payload.get("sub"))
+    return await user_service.get_by_username_orm(payload.get("sub"))
