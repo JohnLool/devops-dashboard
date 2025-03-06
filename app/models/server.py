@@ -24,3 +24,4 @@ class ServerOrm(Base):
 
 
     owner: Mapped["UserOrm"] = relationship("UserOrm", back_populates="servers")
+    containers: Mapped[list["ContainerOrm"]] = relationship("ContainerOrm", back_populates="server", cascade="all, delete-orphan")

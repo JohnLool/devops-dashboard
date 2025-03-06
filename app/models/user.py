@@ -19,4 +19,4 @@ class UserOrm(Base):
     updated_at: Mapped[datetime | None] = mapped_column(onupdate=func.now())
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    servers: Mapped[list["ServerOrm"]] = relationship("ServerOrm", back_populates="owner")
+    servers: Mapped[list["ServerOrm"]] = relationship("ServerOrm", back_populates="owner", cascade="all, delete-orphan")

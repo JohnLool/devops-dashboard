@@ -6,6 +6,7 @@ from app.repositories.abstract_repo import AbstractRepository
 from app.utils.logger import logger
 from app.exceptions import UniqueConstraintException
 
+
 Model = TypeVar("Model")
 
 class BaseRepository(AbstractRepository[Model], Generic[Model]):
@@ -113,6 +114,7 @@ class BaseRepository(AbstractRepository[Model], Generic[Model]):
 
         try:
             await self.session.commit()
+            await self.session.refresh(item)
             return item
         except SQLAlchemyError as e:
             logger.error(f"Error deleting {self.model.__name__} with id {item_id}: {e}")

@@ -5,6 +5,7 @@ from sqlalchemy import pool
 from app.core.database import Base
 from app.models.server import ServerOrm
 from app.models.user import UserOrm
+from app.models.container import ContainerOrm
 from app.core.config import settings
 
 from alembic import context

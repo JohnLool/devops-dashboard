@@ -6,6 +6,7 @@ from typing import Optional
 
 class ServerBase(BaseModel):
     name: constr(min_length=5, max_length=16, strip_whitespace=True)
+    description: constr(min_length=0, max_length=160, strip_whitespace=True) = None
 
 
 class ServerCreate(ServerBase):
@@ -17,6 +18,7 @@ class ServerCreate(ServerBase):
 
 class ServerUpdate(ServerBase):
     name: constr(min_length=5, max_length=16, strip_whitespace=True) | None = None
+    description: constr(min_length=0, max_length=160, strip_whitespace=True) | None = None
     host: str| None = None
     port: int | None = None
     ssh_user: str | None = None
@@ -25,6 +27,8 @@ class ServerUpdate(ServerBase):
 
 class ServerOut(ServerBase):
     id: int
+    host: str
+    port: int
     owner_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

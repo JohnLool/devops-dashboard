@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
 
-from app.models.server import ServerOrm
 from app.repositories.base_repo import BaseRepository
 from app.models.user import UserOrm
 
@@ -15,7 +14,3 @@ class UserRepository(BaseRepository[UserOrm]):
 
     async def get_by_username(self, username: str, *filters, options=None) -> Optional[UserOrm]:
         return await super().get_by_field('username', username, *filters, options=options)
-
-    async def get_user_servers(self, user_id: int, options=None) -> List[ServerOrm]:
-        filters = [ServerOrm.owner_id == user_id]
-        return await super().get_all(*filters, options=options)
