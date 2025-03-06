@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import List, Optional, Annotated
 
-from app.schemas.user import UserOut, UserCreate
+from app.models import UserOrm
+from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.dependencies.services import get_user_service
 from app.dependencies.auth import get_current_user
+
 from app.services.user_service import UserService
 from app.schemas.token import Token
 
@@ -13,7 +15,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/profile", response_model=UserOut)
-async def get_user_profile(current_user: Optional[UserOut] = Depends(get_current_user)):
+async def get_user_profile(current_user: UserOrm = Depends(get_current_user)):
     if current_user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -26,7 +28,7 @@ async def get_user_profile(current_user: Optional[UserOut] = Depends(get_current
 async def create_user(
         user: UserCreate,
         user_service: UserService = Depends(get_user_service),
-        current_user: Optional[UserOut] = Depends(get_current_user),
+        current_user: UserOrm = Depends(get_current_user),
 ):
     if current_user:
         raise HTTPException(
@@ -35,6 +37,33 @@ async def create_user(
         )
 
     return await user_service.create(user)
+
+@router.put("/", response_model=UserOut)
+async def update_user(
+        user_data: UserUpdate,
+        user_service: UserService = Depends(get_user_service),
+        current_user: UserOrm = Depends(get_current_user),
+):
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    return await user_service.update(current_user.id, user_data)
+
+@router.delete("/", response_model=UserOut)
+async def delete_user(
+        current_user: UserOrm = Depends(get_current_user),
+        user_service: UserService = Depends(get_user_service)
+):
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    return await user_service.delete(current_user.id)
 
 @router.post("/login", response_model=Token)
 async def login_for_user_access_token(
