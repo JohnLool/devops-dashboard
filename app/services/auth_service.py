@@ -4,9 +4,10 @@ from jwt import PyJWTError
 from passlib.context import CryptContext
 from app.core.config import settings
 import asyncio
+from app.utils.logger import logger
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"])
 
 
 class AuthService:
@@ -44,4 +45,6 @@ class AuthService:
 
     @staticmethod
     async def verify_password(plain_password: str, hashed_password: str) -> bool:
-        return await asyncio.to_thread(pwd_context.verify, plain_password, hashed_password)
+        result = await asyncio.to_thread(pwd_context.verify, plain_password, hashed_password)
+        logger.info(f"Verifying password: {plain_password} against hash {hashed_password}, result: {result}")
+        return result

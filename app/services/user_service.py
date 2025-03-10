@@ -5,6 +5,7 @@ from app.repositories.user_repo import UserRepository
 from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.services.auth_service import AuthService
 from app.services.base_service import BaseService
+from app.utils.logger import logger
 
 
 class UserService(BaseService[UserRepository]):
@@ -29,8 +30,7 @@ class UserService(BaseService[UserRepository]):
             update_data["hashed_password"] = await self.auth_service.hash_password(update_data["password"])
             del update_data["password"]
 
-        updated_user = user_data.model_copy(update=update_data)
-        return await super().update(user_id, updated_user)
+        return await super().update(user_id, update_data)
 
     async def get_by_username(self, username: str) -> Optional[UserOut]:
         record = await self.repository.get_by_username(username)
@@ -44,8 +44,17 @@ class UserService(BaseService[UserRepository]):
 
     async def authenticate_user(self, username: str, password: str):
         user = await self.repository.get_by_username(username)
-        if not user or not await self.auth_service.verify_password(password, user.hashed_password):
+        logger.info(f"Found user: {user}")
+        if not user:
+            print("User not found")
             return None
+
+        is_valid = await self.auth_service.verify_password(password, user.hashed_password)
+        logger.info(f"Password valid: {is_valid}")
+
+        if not is_valid:
+            return None
+
         return user
 
     async def create_user_token(self, user) -> Optional[str]:
