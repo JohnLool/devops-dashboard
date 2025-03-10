@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from app.api.user import router as user_router
 from app.api.servers import router as server_router
+from app.api.container import router as container_router
 from app.core.database import create_db, delete_db
 from app.exceptions import UniqueConstraintException
 
@@ -23,3 +24,4 @@ async def unique_constraint_exception_handler(request: Request, exc: UniqueConst
     )
 app.include_router(user_router)
 app.include_router(server_router)
+app.include_router(container_router)

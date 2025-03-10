@@ -29,6 +29,8 @@ class ServerOut(ServerBase):
     id: int
     host: str
     port: int
+    ssh_user: str
+    ssh_private_key: str
     owner_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

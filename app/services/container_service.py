@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.models import ContainerOrm
 from app.repositories.container_repo import ContainerRepository
-from app.schemas.container import ContainerOut
+from app.schemas.container import ContainerOut, ContainerCreate
 from app.services.base_service import BaseService
 from app.services.ssh_service import SSHService
 
@@ -12,6 +12,11 @@ class ContainerService(BaseService[ContainerRepository]):
     def __init__(self, db: AsyncSession, ssh_service: SSHService):
         super().__init__(ContainerRepository(db), ContainerOut)
         self.ssh_service = ssh_service
+
+    async def create_with_server_id(self, server_id: int, container: ContainerCreate) -> ContainerOut:
+        data = container.model_dump()
+        data['server_id'] = server_id
+        return await super().create(data)
 
     async def get_all_by_server(self, server_id: int) -> List[ContainerOut]:
         filters = [ContainerOrm.server_id == server_id]

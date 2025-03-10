@@ -9,8 +9,10 @@ from app.core.database import Base
 
 class ContainerOrm(Base):
     __tablename__ = "containers"
-    __table_args__ = (UniqueConstraint("server_id", "name", name="uq_server_container_name"),)
-
+    __table_args__ = (
+        UniqueConstraint("server_id", "name", name="uq_server_container_name"),
+        UniqueConstraint("server_id", "docker_id", name="uq_server_docker"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     docker_id: Mapped[str] = mapped_column(String(255), nullable=False)

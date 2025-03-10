@@ -13,7 +13,7 @@ class ContainerBase(BaseModel):
 
 
 class ContainerCreate(ContainerBase):
-    server_id: int
+    pass
 
 
 class ContainerUpdate(BaseModel):
