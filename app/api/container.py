@@ -47,8 +47,9 @@ async def get_server_containers(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Server not found."
         )
-    containers = await container_service.get_all_by_server(server_id)
-    return containers
+
+    await container_service.sync_containers(server)
+    return await container_service.get_all_by_server(server_id)
 
 
 @router.get("/{container_id}", response_model=ContainerOut)
