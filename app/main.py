@@ -13,7 +13,7 @@ async def lifespan(_: FastAPI):
     # await create_db()
     yield
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="DevOps Dashboard")
 
 @app.exception_handler(UniqueConstraintException)
 async def unique_constraint_exception_handler(request: Request, exc: UniqueConstraintException):

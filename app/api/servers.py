@@ -12,7 +12,7 @@ router = APIRouter(prefix="/servers", tags=["servers"])
 
 
 @router.get("/", response_model=List[ServerOut])
-async def get_servers(
+async def get_user_servers(
     current_user: UserOrm = Depends(get_current_user),
     server_service: ServerService = Depends(get_server_service)
 ):

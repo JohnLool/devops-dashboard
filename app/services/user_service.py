@@ -2,7 +2,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.user_repo import UserRepository
-from app.schemas.user import UserOut, UserCreate
+from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.services.auth_service import AuthService
 from app.services.base_service import BaseService
 
@@ -19,6 +19,19 @@ class UserService(BaseService[UserRepository]):
             del data["password"]
         return await super().create(data)
 
+    async def update(self, user_id: int, user_data: UserUpdate) -> Optional[UserOut]:
+        user = await self.repository.get_by_id(user_id)
+        if not user:
+            return None
+
+        update_data = user_data.model_dump(exclude_unset=True)
+        if "password" in update_data and update_data["password"]:
+            update_data["hashed_password"] = await self.auth_service.hash_password(update_data["password"])
+            del update_data["password"]
+
+        updated_user = user_data.model_copy(update=update_data)
+        return await super().update(user_id, updated_user)
+
     async def get_by_username(self, username: str) -> Optional[UserOut]:
         record = await self.repository.get_by_username(username)
         if not record:
@@ -31,7 +44,7 @@ class UserService(BaseService[UserRepository]):
 
     async def authenticate_user(self, username: str, password: str):
         user = await self.repository.get_by_username(username)
-        if not user or not self.auth_service.verify_password(password, user.hashed_password):
+        if not user or not await self.auth_service.verify_password(password, user.hashed_password):
             return None
         return user
 

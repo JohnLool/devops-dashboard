@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 
 
 from app.models import ServerOrm
@@ -17,6 +17,6 @@ class ServerService(BaseService[ServerRepository]):
         data_dict["owner_id"] = owner_id
         return await super().create(data_dict)
 
-    async def get_all_by_owner(self, owner_id: int) -> Optional[ServerOut]:
+    async def get_all_by_owner(self, owner_id: int) -> List[ServerOut]:
         filters = [ServerOrm.owner_id == owner_id]
         return await super().get_all(*filters)

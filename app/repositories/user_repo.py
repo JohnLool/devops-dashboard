@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional, List
+from typing import Optional
 
 from app.repositories.base_repo import BaseRepository
 from app.models.user import UserOrm
