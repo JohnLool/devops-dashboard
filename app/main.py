@@ -11,8 +11,9 @@ from app.exceptions import UniqueConstraintException
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # await create_db()
+    # await delete_db()
     yield
+    # await create_db()
 
 app = FastAPI(lifespan=lifespan, title="DevOps Dashboard")
 

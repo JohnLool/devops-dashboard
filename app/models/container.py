@@ -15,8 +15,8 @@ class ContainerOrm(Base):
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    docker_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), nullable=False)  # running, stopped, etc...
+    docker_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=True)  # running, stopped, etc...
     image: Mapped[str] = mapped_column(String(255), nullable=False)
     ports: Mapped[str | None] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
