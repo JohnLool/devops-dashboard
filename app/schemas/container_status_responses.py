@@ -39,3 +39,11 @@ class ContainerResponses:
             status="creating",
             message="Container is creating. Please check the status later."
         )
+
+    @staticmethod
+    def deleting(container_id: int) -> ContainerResponse:
+        return ContainerResponse(
+            container_id=container_id,
+            status="deleting",
+            message="Container is deleting. Please check the status later."
+        )

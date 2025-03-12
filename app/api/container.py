@@ -1,208 +1,96 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from typing import List
+from typing import List, Tuple
 
 
-from app.dependencies.auth import get_current_user
-from app.dependencies.services import get_container_service, get_server_service
-from app.models import UserOrm
-from app.schemas.container import ContainerOut, ContainerCreate, ContainerUpdate
+from app.dependencies.services import get_container_service
+from app.dependencies.validate_ownership import validate_server_ownership, validate_container_ownership, \
+    validate_container_with_server
+
+from app.schemas.container import ContainerOut, ContainerCreate, ContainerUpdate, ContainerAction
 from app.schemas.container_status_responses import ContainerResponses
+from app.schemas.server import ServerOut
 from app.services.container_service import ContainerService
-from app.services.server_service import ServerService
+
 
 router = APIRouter(prefix="/servers/{server_id}/containers", tags=["containers"])
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_202_ACCEPTED)
 async def create_container(
-        server_id: int,
         container_data: ContainerCreate,
-        current_user: UserOrm = Depends(get_current_user),
-        container_service: ContainerService = Depends(get_container_service),
-        server_service: ServerService = Depends(get_server_service)
+        server: ServerOut = Depends(validate_server_ownership),
+        container_service: ContainerService = Depends(get_container_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.create_with_server(server, container_data)
-    if not container:
+    try:
+        container = await container_service.create_with_server(server, container_data)
+        return ContainerResponses.creating(container.id)
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Container creation failed."
+            detail=str(e)
         )
-    return ContainerResponses.creating(container.id)
 
 
 @router.get("/", response_model=List[ContainerOut])
 async def get_server_containers(
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
+        server: ServerOut = Depends(validate_server_ownership),
         container_service: ContainerService = Depends(get_container_service),
-        server_service: ServerService = Depends(get_server_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-
     await container_service.sync_containers(server)
-    return await container_service.get_all_by_server(server_id)
+    return await container_service.get_all_by_server(server.id)
 
 
 @router.get("/{container_id}", response_model=ContainerOut)
 async def get_container(
-        container_id: int,
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service),
-        container_service: ContainerService = Depends(get_container_service)
+        container_with_server: Tuple[ServerOut, ContainerOut] = Depends(validate_container_with_server),
+        container_service: ContainerService = Depends(get_container_service),
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
+    server, container = container_with_server
     await container_service.sync_containers(server)
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
     return container
 
 
 @router.put("/{container_id}", response_model=ContainerOut)
 async def update_container(
-        container_id: int,
-        server_id: int,
         container_data: ContainerUpdate,
-        current_user: UserOrm = Depends(get_current_user),
-        container_service: ContainerService = Depends(get_container_service),
-        server_service: ServerService = Depends(get_server_service)
+        container: ContainerOut = Depends(validate_container_ownership),
+        container_service: ContainerService = Depends(get_container_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
-    container = await container_service.update(container_id, container_data)
-    if not container:
+    updated_container = await container_service.update(container.id, container_data)
+    return updated_container
+
+@router.delete("/{container_id}")
+async def delete_container(
+        container_with_server: Tuple[ServerOut, ContainerOut] = Depends(validate_container_with_server),
+        container_service: ContainerService = Depends(get_container_service)
+):
+    server, container = container_with_server
+    try:
+        await container_service.remove_container(container, server)
+        return ContainerResponses.deleting(container.id)
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Container update failed."
+            detail=str(e)
         )
-    return container
 
-
-@router.delete("/{container_id}", response_model=ContainerOut)
-async def delete_container(
-        container_id: int,
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service),
+@router.post("/{container_id}/{action}")
+async def control_container(
+        action: ContainerAction,
+        container_with_server: Tuple[ServerOut, ContainerOut] = Depends(validate_container_with_server),
         container_service: ContainerService = Depends(get_container_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
-    try:
-        deleted_container = await container_service.remove_container(container, server)
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    server, container = container_with_server
+    if action == ContainerAction.start:
+        await container_service.start_container(container, server)
+        response = ContainerResponses.starting(container.id)
+    elif action == ContainerAction.stop:
+        await container_service.stop_container(container, server)
+        response = ContainerResponses.stopping(container.id)
+    elif action == ContainerAction.restart:
+        await container_service.restart_container(container, server)
+        response = ContainerResponses.restarting(container.id)
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action.")
 
-    return deleted_container
-
-
-@router.post("/{container_id}/stop")
-async def stop_container(
-        container_id: int,
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service),
-        container_service: ContainerService = Depends(get_container_service)
-):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
-    await container_service.stop_container(container, server)
-    return ContainerResponses.stopping(container_id)
-
-
-@router.post("/{container_id}/start")
-async def start_container(
-        container_id: int,
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service),
-        container_service: ContainerService = Depends(get_container_service)
-):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
-    await container_service.start_container(container, server)
-    return ContainerResponses.starting(container_id)
-
-
-@router.post("/{container_id}/restart")
-async def restart_container(
-        container_id: int,
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service),
-        container_service: ContainerService = Depends(get_container_service)
-):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    container = await container_service.get_by_id(container_id)
-    if not container or container.server_id != server_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Container not found."
-        )
-    await container_service.restart_container(container, server)
-    return ContainerResponses.restarting(container_id)
+    return response

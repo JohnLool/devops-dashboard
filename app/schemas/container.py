@@ -1,6 +1,7 @@
 from pydantic import BaseModel, constr, ConfigDict
 from datetime import datetime
 from typing import Optional, Dict
+from enum import Enum
 
 
 class ContainerBase(BaseModel):
@@ -33,3 +34,9 @@ class ContainerOut(ContainerBase):
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ContainerAction(str, Enum):
+    start = "start"
+    stop = "stop"
+    restart = "restart"
