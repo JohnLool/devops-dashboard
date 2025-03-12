@@ -128,13 +128,11 @@ async def delete_container(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Container not found."
         )
-    deleted_container = await container_service.delete(container_id)
-    if not deleted_container:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Deletion failed."
-        )
-    await container_service.remove_container(container, server)
+    try:
+        deleted_container = await container_service.remove_container(container, server)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     return deleted_container
 
 

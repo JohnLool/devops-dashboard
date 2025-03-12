@@ -5,7 +5,7 @@ from app.schemas.server import ServerOut
 from app.utils.logger import logger
 from app.models import ContainerOrm
 from app.repositories.container_repo import ContainerRepository
-from app.schemas.container import ContainerOut, ContainerCreate, ContainerUpdate
+from app.schemas.container import ContainerOut, ContainerCreate
 from app.services.base_service import BaseService
 from app.services.ssh_service import SSHService
 
@@ -35,15 +35,19 @@ class ContainerService(BaseService[ContainerRepository]):
         data['status'] = "running"
         data.pop("env", None)
         data.pop("extra_args", None)
-        return await super().create(data)
+
+        try:
+            record = await super().create(data)
+        except Exception as db_err:
+            await self.ssh_service.remove_container(server.host, server.ssh_user, server.ssh_private_key,
+                                                    container.name)
+            raise Exception(f"DB error: {str(db_err)}. The container on the remote server has been removed.")
+
+        return record
 
     async def get_all_by_server(self, server_id: int) -> List[ContainerOut]:
         filters = [ContainerOrm.server_id == server_id]
         return await super().get_all(*filters)
-
-    async def update_container_status(self, container_id: int, new_status: str) -> Optional[ContainerOut]:
-        update_data = {"status": new_status}
-        return await super().update(container_id, update_data)
 
     async def start_container(self, container: ContainerOut, server: ServerOut) -> str:
         return await self.ssh_service.start_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
@@ -54,8 +58,13 @@ class ContainerService(BaseService[ContainerRepository]):
     async def stop_container(self, container: ContainerOut, server: ServerOut) -> str:
         return await self.ssh_service.stop_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
 
-    async def remove_container(self, container: ContainerOut, server: ServerOut) -> str:
-        return await self.ssh_service.remove_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
+    async def remove_container(self, container: ContainerOut, server: ServerOut) -> ContainerOut:
+        result = await self.ssh_service.remove_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
+
+        if "Error" in result:
+            raise Exception(f"Failed to remove container: {result}")
+
+        return await super().delete(container.id)
 
     async def create_record_from_docker_data(self, server: ServerOut, docker_data: Dict) -> None:
         data = {
