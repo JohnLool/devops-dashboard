@@ -24,7 +24,7 @@ async def get_user_profile(current_user: UserOrm = Depends(get_current_user)):
 
     return current_user
 
-@router.post("/", response_model=UserOut)
+@router.post("", response_model=UserOut)
 async def create_user(
         user: UserCreate,
         user_service: UserService = Depends(get_user_service),
@@ -38,7 +38,7 @@ async def create_user(
 
     return await user_service.create(user)
 
-@router.put("/", response_model=UserOut)
+@router.put("", response_model=UserOut)
 async def update_user(
         user_data: UserUpdate,
         user_service: UserService = Depends(get_user_service),
@@ -52,7 +52,7 @@ async def update_user(
 
     return await user_service.update(current_user.id, user_data)
 
-@router.delete("/", response_model=UserOut)
+@router.delete("", response_model=UserOut)
 async def delete_user(
         current_user: UserOrm = Depends(get_current_user),
         user_service: UserService = Depends(get_user_service)

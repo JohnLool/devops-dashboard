@@ -15,7 +15,7 @@ from app.services.container_service import ContainerService
 router = APIRouter(prefix="/servers/{server_id}/containers", tags=["containers"])
 
 
-@router.post("/", status_code=status.HTTP_202_ACCEPTED)
+@router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def create_container(
         container_data: ContainerCreate,
         server: ServerOut = Depends(validate_server_ownership),
@@ -31,7 +31,7 @@ async def create_container(
         )
 
 
-@router.get("/", response_model=List[ContainerOut])
+@router.get("", response_model=List[ContainerOut])
 async def get_server_containers(
         server: ServerOut = Depends(validate_server_ownership),
         container_service: ContainerService = Depends(get_container_service),

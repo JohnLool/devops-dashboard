@@ -11,7 +11,7 @@ from app.models.user import UserOrm
 router = APIRouter(prefix="/servers", tags=["servers"])
 
 
-@router.get("/", response_model=List[ServerOut])
+@router.get("", response_model=List[ServerOut])
 async def get_user_servers(
         current_user: UserOrm = Depends(get_current_user),
         server_service: ServerService = Depends(get_server_service)
@@ -19,7 +19,7 @@ async def get_user_servers(
     servers = await server_service.get_all_by_owner(current_user.id)
     return servers
 
-@router.post("/", response_model=ServerOut)
+@router.post("", response_model=ServerOut)
 async def create_server(
         server_data: ServerCreate,
         current_user: UserOrm = Depends(get_current_user),

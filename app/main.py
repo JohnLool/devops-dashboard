@@ -25,9 +25,14 @@ async def unique_constraint_exception_handler(request: Request, exc: UniqueConst
         content={"detail": exc.message}
     )
 
+origins = [
+    "http://127.0.0.1:5173",  # React (если фронт на 3000 порту)
+    "http://localhost:5173",  # На всякий случай
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

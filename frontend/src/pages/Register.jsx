@@ -13,7 +13,6 @@ const Register = () => {
     setError('');
 
     try {
-      // Отправляем POST запрос на эндпоинт регистрации
       const response = await fetch('http://127.0.0.1:8000/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,48 +24,50 @@ const Register = () => {
       }
 
       await response.json();
-      navigate('/login');  // После регистрации переходим на страницу логина
+      navigate('/login');
     } catch (err) {
       setError(err.message);
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '2rem auto' }}>
-      <h2>Register</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow-md">
+      <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
+      {error && <p className="text-red-500 mb-4">{error}</p>}
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Username:</label>
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Username:</label>
           <input
             type="text"
             value={username}
             onChange={e => setUsername(e.target.value)}
             required
-            style={{ width: '100%', padding: '0.5rem' }}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Email:</label>
+        <div className="mb-4">
+          <label className="block mb-1 font-semibold">Email:</label>
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
             required
-            style={{ width: '100%', padding: '0.5rem' }}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <div style={{ marginBottom: '1rem' }}>
-          <label>Password:</label>
+        <div className="mb-6">
+          <label className="block mb-1 font-semibold">Password:</label>
           <input
             type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             required
-            style={{ width: '100%', padding: '0.5rem' }}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <button type="submit" style={{ padding: '0.5rem 1rem' }}>Register</button>
+        <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+          Register
+        </button>
       </form>
     </div>
   );
