@@ -1,6 +1,6 @@
 import json
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Dict
+from typing import List, Dict
 from app.schemas.server import ServerOut
 from app.utils.logger import logger
 from app.models import ContainerOrm

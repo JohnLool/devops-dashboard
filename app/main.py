@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.api.user import router as user_router
@@ -23,6 +24,15 @@ async def unique_constraint_exception_handler(request: Request, exc: UniqueConst
         status_code=400,
         content={"detail": exc.message}
     )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(user_router)
 app.include_router(server_router)
 app.include_router(container_router)

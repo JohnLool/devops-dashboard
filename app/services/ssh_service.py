@@ -46,7 +46,6 @@ class SSHService:
 
     @staticmethod
     async def remove_container(host: str, username: str, ssh_private_key: str, container_name: str) -> str:
-        # First stop (suppress error if already stopped), then remove.
         command = f"docker stop {container_name} || true; docker rm {container_name}"
         return await SSHService.execute_command(host, username, ssh_private_key, command)
 
