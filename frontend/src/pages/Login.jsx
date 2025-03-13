@@ -8,7 +8,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  // Если пользователь уже залогинен, редиректим на Dashboard
+
   useEffect(() => {
     const token = Cookies.get('access_token');
     if (token) {
