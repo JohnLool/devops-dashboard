@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import Cookies from 'js-cookie';
 
 const Register = () => {
   const [username, setUsername] = useState('');
@@ -7,6 +8,14 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [error, setError]       = useState('');
   const navigate = useNavigate();
+
+  // Если пользователь уже залогинен, редиректим на Dashboard
+  useEffect(() => {
+    const token = Cookies.get('access_token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,6 +78,12 @@ const Register = () => {
           Register
         </button>
       </form>
+      <p className="mt-4 text-center">
+        Already have an account?{' '}
+        <Link to="/login" className="text-blue-600 hover:underline">
+          Login here
+        </Link>
+      </p>
     </div>
   );
 };

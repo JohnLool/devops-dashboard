@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 
 const Login = () => {
@@ -8,12 +8,19 @@ const Login = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Если пользователь уже залогинен, редиректим на Dashboard
+  useEffect(() => {
+    const token = Cookies.get('access_token');
+    if (token) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     try {
-      // Build form data in x-www-form-urlencoded format
       const formData = new URLSearchParams();
       formData.append('username', username);
       formData.append('password', password);
@@ -29,9 +36,9 @@ const Login = () => {
       }
 
       const data = await response.json();
-      // Set cookie with options so it persists (for development, secure is false)
+      // Устанавливаем куки с параметрами: Path, SameSite, secure (secure=false для HTTP)
       Cookies.set('access_token', data.access_token, { path: '/', sameSite: 'None', secure: false });
-      navigate('/dashboard'); // Redirect to dashboard after login
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
     }
@@ -62,13 +69,16 @@ const Login = () => {
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <button
-          type="submit"
-          className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-        >
+        <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
           Login
         </button>
       </form>
+      <p className="mt-4 text-center">
+        Don’t have an account?{' '}
+        <Link to="/register" className="text-blue-600 hover:underline">
+          Register here
+        </Link>
+      </p>
     </div>
   );
 };
