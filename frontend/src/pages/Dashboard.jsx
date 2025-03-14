@@ -7,6 +7,13 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
+const Spinner = () => (
+  <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+  </svg>
+);
+
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
   const [error, setError] = useState('');
@@ -24,6 +31,7 @@ const Dashboard = () => {
     ssh_private_key: ''
   });
   const [formError, setFormError] = useState('');
+  const [serverSubmitting, setServerSubmitting] = useState(false);
   const [containerMenuOpen, setContainerMenuOpen] = useState({});
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContainer, setEditContainer] = useState(null);
@@ -35,20 +43,16 @@ const Dashboard = () => {
     extra_args: '',
     is_active: true
   });
-  // Новое состояние для модального подтверждения пересоздания контейнера
+  const [containerSubmitting, setContainerSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
-  // Закрытие всех контейнерных меню при клике вне
+  // Глобальный обработчик для закрытия всех контейнерных меню при клике вне
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setContainerMenuOpen({});
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    const handleDocumentClick = () => setContainerMenuOpen({});
+    document.addEventListener('click', handleDocumentClick);
+    return () => document.removeEventListener('click', handleDocumentClick);
   }, []);
 
   // Проверка авторизации
@@ -176,9 +180,10 @@ const Dashboard = () => {
     setShowEditModal(false);
     setEditContainer(null);
     setShowConfirm(false);
+    setContainerSubmitting(false);
   };
 
-  // Функция для обновления Active статуса контейнера
+  // Функция для обновления контейнера Active статусом (PUT запрос)
   const updateContainerActiveStatus = async (serverId, containerId, is_active) => {
     try {
       const token = Cookies.get('access_token');
@@ -203,6 +208,7 @@ const Dashboard = () => {
   // Функция обработки отправки формы редактирования контейнера
   const handleEditSubmit = async (e, serverId) => {
     e.preventDefault();
+    setContainerSubmitting(true);
     const { name, image, ports, env, extra_args, is_active } = editForm;
     const fieldsChanged = (
       name !== editContainer.name ||
@@ -211,7 +217,6 @@ const Dashboard = () => {
       env.trim() !== '' ||
       extra_args.trim() !== ''
     );
-    // Если изменений только в Active, то сразу отправляем PUT запрос
     if (!fieldsChanged) {
       if (is_active !== editContainer.is_active) {
         await updateContainerActiveStatus(serverId, editContainer.id, is_active);
@@ -219,12 +224,14 @@ const Dashboard = () => {
       closeEditModal();
       return;
     }
-    // Вместо window.confirm – показываем модальное окно подтверждения
+    // Вместо browser alert – показываем модальное окно подтверждения (уже реализовано в confirm modal ниже)
     setShowConfirm(true);
+    setContainerSubmitting(false);
   };
 
-  // Функция подтверждения пересоздания контейнера
+  // Функция подтверждения пересоздания контейнера (из модального окна подтверждения)
   const confirmEditSubmit = async (serverId) => {
+    setContainerSubmitting(true);
     const { name, image, ports, env, extra_args, is_active } = editForm;
     try {
       const token = Cookies.get('access_token');
@@ -253,6 +260,7 @@ const Dashboard = () => {
       closeEditModal();
     } catch (err) {
       console.error(err);
+      setContainerSubmitting(false);
     }
   };
 
@@ -266,6 +274,7 @@ const Dashboard = () => {
   const handleServerFormSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setServerSubmitting(true);
     try {
       const token = Cookies.get('access_token');
       const response = await fetch('http://127.0.0.1:8000/servers/', {
@@ -296,6 +305,8 @@ const Dashboard = () => {
       });
     } catch (err) {
       setFormError(err.message);
+    } finally {
+      setServerSubmitting(false);
     }
   };
 
@@ -460,6 +471,7 @@ const Dashboard = () => {
             <form onSubmit={async (e) => {
               e.preventDefault();
               setFormError('');
+              setServerSubmitting(true);
               try {
                 const token = Cookies.get('access_token');
                 const response = await fetch('http://127.0.0.1:8000/servers/', {
@@ -490,6 +502,8 @@ const Dashboard = () => {
                 });
               } catch (err) {
                 setFormError(err.message);
+              } finally {
+                setServerSubmitting(false);
               }
             }}>
               <div className="mb-4">
@@ -557,8 +571,9 @@ const Dashboard = () => {
                   placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
                 />
               </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-                Create Server
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
+                {serverSubmitting && <Spinner />}
+                {serverSubmitting ? 'Creating...' : 'Create Server'}
               </button>
             </form>
           </div>
@@ -644,8 +659,9 @@ const Dashboard = () => {
                   <span className="ml-3 text-gray-700 font-medium">Active</span>
                 </label>
               </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-                Update Container
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
+                {containerSubmitting && <Spinner />}
+                {containerSubmitting ? 'Updating...' : 'Update Container'}
               </button>
             </form>
           </div>
@@ -665,7 +681,6 @@ const Dashboard = () => {
             <div className="flex justify-around">
               <button
                 onClick={() => {
-                  // Если подтверждено, выполняем обновление
                   confirmEditSubmit(editContainer.server_id);
                   setShowConfirm(false);
                 }}
@@ -700,6 +715,7 @@ const Dashboard = () => {
             <form onSubmit={async (e) => {
               e.preventDefault();
               setFormError('');
+              setServerSubmitting(true);
               try {
                 const token = Cookies.get('access_token');
                 const response = await fetch('http://127.0.0.1:8000/servers/', {
@@ -730,6 +746,8 @@ const Dashboard = () => {
                 });
               } catch (err) {
                 setFormError(err.message);
+              } finally {
+                setServerSubmitting(false);
               }
             }}>
               <div className="mb-4">
@@ -797,8 +815,9 @@ const Dashboard = () => {
                   placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
                 />
               </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
-                Create Server
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
+                {serverSubmitting && <Spinner />}
+                {serverSubmitting ? 'Creating...' : 'Create Server'}
               </button>
             </form>
           </div>
