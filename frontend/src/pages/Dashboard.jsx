@@ -224,7 +224,6 @@ const Dashboard = () => {
       closeEditModal();
       return;
     }
-    // Вместо browser alert – показываем модальное окно подтверждения (уже реализовано в confirm modal ниже)
     setShowConfirm(true);
     setContainerSubmitting(false);
   };
@@ -401,8 +400,7 @@ const Dashboard = () => {
                                     <MoreVertIcon className="h-6 w-6 text-black" />
                                   </button>
                                   {containerMenuOpen[container.id] && (
-                                    <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10"
-                                         onClick={(e) => e.stopPropagation()}>
+                                    <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -695,131 +693,6 @@ const Dashboard = () => {
                 Cancel
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal for Adding Server */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-            <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 text-2xl"
-              onClick={() => setShowModal(false)}
-              title="Close"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl font-bold mb-4 text-center">Add Server</h3>
-            {formError && <p className="text-red-500 mb-4">{formError}</p>}
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setFormError('');
-              setServerSubmitting(true);
-              try {
-                const token = Cookies.get('access_token');
-                const response = await fetch('http://127.0.0.1:8000/servers/', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    ...serverForm,
-                    port: parseInt(serverForm.port, 10)
-                  }),
-                  credentials: 'include'
-                });
-                if (!response.ok) {
-                  throw new Error('Server creation failed.');
-                }
-                const newServer = await response.json();
-                setServers(prev => [...prev, newServer]);
-                setShowModal(false);
-                setServerForm({
-                  name: '',
-                  description: '',
-                  host: '',
-                  port: '',
-                  ssh_user: '',
-                  ssh_private_key: ''
-                });
-              } catch (err) {
-                setFormError(err.message);
-              } finally {
-                setServerSubmitting(false);
-              }
-            }}>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Name:</label>
-                <input
-                  type="text"
-                  value={serverForm.name}
-                  onChange={e => setServerForm({ ...serverForm, name: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Server name"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Description:</label>
-                <input
-                  type="text"
-                  value={serverForm.description}
-                  onChange={e => setServerForm({ ...serverForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Host:</label>
-                <input
-                  type="text"
-                  value={serverForm.host}
-                  onChange={e => setServerForm({ ...serverForm, host: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Example: 192.168.0.1"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Port:</label>
-                <input
-                  type="number"
-                  value={serverForm.port}
-                  onChange={e => setServerForm({ ...serverForm, port: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Example: 443"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">SSH User:</label>
-                <input
-                  type="text"
-                  value={serverForm.ssh_user}
-                  onChange={e => setServerForm({ ...serverForm, ssh_user: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='"root" by default'
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block mb-1 font-semibold">SSH Private Key:</label>
-                <textarea
-                  value={serverForm.ssh_private_key}
-                  onChange={e => setServerForm({ ...serverForm, ssh_private_key: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="4"
-                  placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
-                />
-              </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
-                {serverSubmitting && <Spinner />}
-                {serverSubmitting ? 'Creating...' : 'Create Server'}
-              </button>
-            </form>
           </div>
         </div>
       )}
