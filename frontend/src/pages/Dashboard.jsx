@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import MoreVert from "@mui/icons-material/MoreVert";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 
@@ -24,8 +24,30 @@ const Dashboard = () => {
     ssh_private_key: ''
   });
   const [formError, setFormError] = useState('');
-  const [menuOpen, setMenuOpen] = useState({}); // состояние меню для каждого сервера
+  const [containerMenuOpen, setContainerMenuOpen] = useState({});
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editContainer, setEditContainer] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    image: '',
+    ports: '',
+    env: '',
+    extra_args: '',
+    is_active: true
+  });
   const navigate = useNavigate();
+  const menuRef = useRef(null);
+
+  // Закрытие контейнерных меню при клике вне
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setContainerMenuOpen({});
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Проверка авторизации
   useEffect(() => {
@@ -35,7 +57,7 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  // Получение списка серверов с обработкой 401
+  // Получение серверов
   useEffect(() => {
     const fetchServers = async () => {
       try {
@@ -66,11 +88,10 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
     fetchServers();
   }, [navigate]);
 
-  // Функция для получения контейнеров для сервера
+  // Получение контейнеров для сервера
   const fetchContainersForServer = async (serverId) => {
     try {
       const token = Cookies.get('access_token');
@@ -92,23 +113,25 @@ const Dashboard = () => {
     }
   };
 
-  // Переключение раскрытия сервера и загрузка контейнеров, если нужно
+  // Переключение раскрытия сервера и загрузка контейнеров
   const toggleServer = async (serverId) => {
     setExpanded((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
-    // Закрываем меню MoreVert, если оно открыто
-    setMenuOpen((prev) => ({ ...prev, [serverId]: false }));
+    setContainerMenuOpen((prev) => ({ ...prev, [serverId]: false }));
     if (!expanded[serverId] && !containers[serverId]) {
       await fetchContainersForServer(serverId);
     }
   };
 
-  // Функция для переключения меню MoreVert для сервера
-  const toggleMenu = (serverId, e) => {
-    e.stopPropagation(); // чтобы не вызывался toggleServer
-    setMenuOpen((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
+  // Переключение меню MoreVert для контейнера
+  const toggleContainerMenu = (containerId, e) => {
+    e.stopPropagation();
+    setContainerMenuOpen((prev) => ({
+      ...prev,
+      [containerId]: !prev[containerId]
+    }));
   };
 
-  // Функция для управления контейнером (start, stop, restart)
+  // Функция управления контейнером (start, stop, restart)
   const handleControl = async (containerId, action, serverId) => {
     setActionLoading((prev) => ({ ...prev, [containerId]: action }));
     try {
@@ -129,6 +152,100 @@ const Dashboard = () => {
       console.error(error);
     } finally {
       setActionLoading((prev) => ({ ...prev, [containerId]: false }));
+    }
+  };
+
+  // Открытие модального окна редактирования контейнера
+  const openEditModal = (container, serverId) => {
+    setEditContainer({ ...container, server_id: serverId });
+    setEditForm({
+      name: container.name,
+      image: container.image,
+      ports: '',
+      env: '',
+      extra_args: '',
+      is_active: container.is_active !== undefined ? container.is_active : true
+    });
+    setShowEditModal(true);
+    setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setEditContainer(null);
+  };
+
+  // Функция для обновления контейнера Active статусом (PUT запрос)
+  const updateContainerActiveStatus = async (serverId, containerId, is_active) => {
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${serverId}/containers/${containerId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_active }),
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Active status update failed');
+      }
+      await fetchContainersForServer(serverId);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Функция обработки отправки формы редактирования контейнера
+  const handleEditSubmit = async (e, serverId) => {
+    e.preventDefault();
+    const { name, image, ports, env, extra_args, is_active } = editForm;
+    const fieldsChanged = (
+      name !== editContainer.name ||
+      image !== editContainer.image ||
+      ports !== (editContainer.ports || '') ||
+      env.trim() !== '' ||
+      extra_args.trim() !== ''
+    );
+    if (!fieldsChanged) {
+      if (is_active !== editContainer.is_active) {
+        await updateContainerActiveStatus(serverId, editContainer.id, is_active);
+      }
+      closeEditModal();
+      return;
+    }
+    const confirmRecreate = window.confirm("Are you sure you want to recreate the container with the new data?");
+    if (!confirmRecreate) {
+      return;
+    }
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${serverId}/containers/${editContainer.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name,
+          image,
+          ports,
+          env: env ? JSON.parse(env) : {},
+          extra_args
+        }),
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Container update failed.');
+      }
+      if (is_active !== editContainer.is_active) {
+        await updateContainerActiveStatus(serverId, editContainer.id, is_active);
+      }
+      await fetchContainersForServer(serverId);
+      closeEditModal();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -211,9 +328,8 @@ const Dashboard = () => {
                   <p>{server.host}:{server.port}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {/* Кнопка MoreVert для показа меню */}
-                  <button onClick={(e) => toggleMenu(server.id, e)} className="p-1">
-                    <MoreVert className="h-6 w-6 text-black" />
+                  <button onClick={(e) => e.stopPropagation()} className="p-1">
+                    {/* Серверное меню можно добавить сюда */}
                   </button>
                   {expanded[server.id] ? (
                     <KeyboardArrowUpIcon fontSize="large" />
@@ -222,48 +338,73 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-              {/* Меню MoreVert */}
-              {menuOpen[server.id] && (
-                <div className="absolute top-12 right-4 bg-white border border-gray-300 rounded shadow-md z-10">
-                  <button className="flex items-center px-4 py-2 hover:bg-gray-100 w-full">
-                    <EditIcon className="h-5 w-5 mr-2" /> Edit
-                  </button>
-                  <button className="flex items-center px-4 py-2 hover:bg-gray-100 w-full">
-                    <DeleteIcon className="h-5 w-5 mr-2" /> Delete
-                  </button>
-                </div>
-              )}
               {expanded[server.id] && (
                 <div className="p-4">
                   {containers[server.id] ? (
                     containers[server.id].length > 0 ? (
                       <ul className="space-y-2">
                         {containers[server.id].map((container) => (
-                          <li key={container.id} className="border p-2 rounded">
+                          <li
+                            key={container.id}
+                            className={`border p-2 rounded relative ${!container.is_active ? 'bg-gray-200' : ''}`}
+                          >
                             <div className="flex justify-between items-center mb-1">
                               <p className="font-medium">{container.name}</p>
-                              <div className="flex space-x-2">
+                              <div className="flex items-center space-x-2">
                                 <button
                                   onClick={() => handleControl(container.id, 'start', server.id)}
-                                  disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-green-600 hover:bg-green-700 transition ${actionLoading[container.id] === 'start' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={!container.is_active || actionLoading[container.id]}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-green-600 hover:bg-green-700 transition ${(!container.is_active || actionLoading[container.id] === 'start') ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {actionLoading[container.id] === 'start' ? 'Starting...' : 'Start'}
                                 </button>
                                 <button
                                   onClick={() => handleControl(container.id, 'stop', server.id)}
-                                  disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-red-600 hover:bg-red-700 transition ${actionLoading[container.id] === 'stop' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={!container.is_active || actionLoading[container.id]}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-red-600 hover:bg-red-700 transition ${(!container.is_active || actionLoading[container.id] === 'stop') ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {actionLoading[container.id] === 'stop' ? 'Stopping...' : 'Stop'}
                                 </button>
                                 <button
                                   onClick={() => handleControl(container.id, 'restart', server.id)}
-                                  disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-blue-600 hover:bg-blue-700 transition ${actionLoading[container.id] === 'restart' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={!container.is_active || actionLoading[container.id]}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-blue-600 hover:bg-blue-700 transition ${(!container.is_active || actionLoading[container.id] === 'restart') ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
                                   {actionLoading[container.id] === 'restart' ? 'Restarting...' : 'Restart'}
                                 </button>
+                                <div className="relative" ref={menuRef}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setContainerMenuOpen(prev => ({ ...prev, [container.id]: !prev[container.id] }));
+                                    }}
+                                    className="p-1"
+                                  >
+                                    <MoreVertIcon className="h-6 w-6 text-black" />
+                                  </button>
+                                  {containerMenuOpen[container.id] && (
+                                    <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openEditModal(container, server.id);
+                                        }}
+                                        className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                                      >
+                                        <EditIcon className="h-5 w-5 mr-2" /> Edit
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setContainerMenuOpen(prev => ({ ...prev, [container.id]: false }));
+                                        }}
+                                        className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                                      >
+                                        <DeleteIcon className="h-5 w-5 mr-2" /> Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <p className="text-sm text-gray-600">
@@ -275,7 +416,7 @@ const Dashboard = () => {
                                   : actionLoading[container.id] === 'restart'
                                   ? 'Restarting...'
                                   : 'Updating...'
-                                : container.status}
+                                : container.status}{!container.is_active && ' [DEACTIVATED]'}
                             </p>
                           </li>
                         ))}
@@ -351,6 +492,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, name: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='Server name'
                 />
               </div>
               <div className="mb-4">
@@ -360,6 +502,7 @@ const Dashboard = () => {
                   value={serverForm.description}
                   onChange={e => setServerForm({ ...serverForm, description: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='Optional'
                 />
               </div>
               <div className="mb-4">
@@ -370,6 +513,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, host: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='Example: 192.168.0.1'
                 />
               </div>
               <div className="mb-4">
@@ -380,6 +524,8 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, port: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='Example: 443'
+
                 />
               </div>
               <div className="mb-4">
@@ -390,6 +536,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, ssh_user: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='"root" by default'
                 />
               </div>
               <div className="mb-6">
@@ -400,10 +547,98 @@ const Dashboard = () => {
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="4"
+                  placeholder='Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----'
                 />
               </div>
               <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
                 Create Server
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for Editing Container */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 text-2xl"
+              onClick={closeEditModal}
+              title="Close"
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-bold mb-4 text-center">Edit (Recreate) Container</h3>
+            <form onSubmit={(e) => handleEditSubmit(e, editContainer.server_id)}>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Name:</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Image:</label>
+                <input
+                  type="text"
+                  value={editForm.image}
+                  onChange={e => setEditForm({ ...editForm, image: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Ports:</label>
+                <input
+                  type="text"
+                  value={editForm.ports}
+                  onChange={e => setEditForm({ ...editForm, ports: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='e.g. 80:80, 5432:5432'
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Env (JSON):</label>
+                <textarea
+                  value={editForm.env}
+                  onChange={e => setEditForm({ ...editForm, env: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder='e.g. {"ENV_VAR": "value", "POSTGRES_PASSWORD": "mysecretpassword"}'
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Extra Args:</label>
+                <input
+                  type="text"
+                  value={editForm.extra_args}
+                  onChange={e => setEditForm({ ...editForm, extra_args: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='e.g. --restart unless-stopped'
+                />
+              </div>
+              {/* Переключатель Active */}
+              <div className="mb-6">
+                <label className="flex items-center cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={editForm.is_active}
+                      onChange={e => setEditForm({ ...editForm, is_active: e.target.checked })}
+                    />
+                    <div className={`w-10 h-4 rounded-full shadow-inner ${editForm.is_active ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
+                    <div className={`dot absolute w-6 h-6 bg-gray-100 rounded-full shadow -left-1 -top-1 transition-transform ${editForm.is_active ? 'translate-x-6' : ''}`}></div>
+                  </div>
+                  <span className="ml-3 text-gray-700 font-medium">Active</span>
+                </label>
+              </div>
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                Update Container
               </button>
             </form>
           </div>
