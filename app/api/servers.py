@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from typing import List
 from app.schemas.server import ServerOut, ServerCreate, ServerUpdate
 from app.dependencies.services import get_server_service
 from app.dependencies.auth import get_current_user
 from app.services.server_service import ServerService
-from app.models.server import ServerOrm
+
 from app.models.user import UserOrm
 
 

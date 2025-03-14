@@ -5,7 +5,7 @@ from typing import Optional, Annotated
 from app.models import UserOrm
 from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.dependencies.services import get_user_service
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, is_user_active
 
 from app.services.user_service import UserService
 from app.schemas.token import Token
@@ -69,13 +69,12 @@ async def delete_user(
 async def login_for_user_access_token(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
         user_service: UserService = Depends(get_user_service),
-        current_user: Optional[UserOut] = Depends(get_current_user),
+        is_active: bool = Depends(is_user_active)
 ):
-    if current_user:
+    if is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already authenticated")
 
     user = await user_service.authenticate_user(form_data.username, form_data.password)
 

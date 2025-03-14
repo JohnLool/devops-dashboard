@@ -36,7 +36,6 @@ const Login = () => {
       }
 
       const data = await response.json();
-      // Устанавливаем куки с параметрами: Path, SameSite, secure (secure=false для HTTP)
       Cookies.set('access_token', data.access_token, { path: '/', sameSite: 'None', secure: false });
       navigate('/dashboard');
     } catch (err) {

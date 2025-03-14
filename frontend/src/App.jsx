@@ -19,7 +19,6 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-        {/* Если пользователь заходит по неизвестному URL, перенаправляем его на логин */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
