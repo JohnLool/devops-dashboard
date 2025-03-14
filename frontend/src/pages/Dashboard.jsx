@@ -35,10 +35,12 @@ const Dashboard = () => {
     extra_args: '',
     is_active: true
   });
+  // Новое состояние для модального подтверждения пересоздания контейнера
+  const [showConfirm, setShowConfirm] = useState(false);
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
-  // Закрытие контейнерных меню при клике вне
+  // Закрытие всех контейнерных меню при клике вне
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -113,7 +115,7 @@ const Dashboard = () => {
     }
   };
 
-  // Переключение раскрытия сервера и загрузка контейнеров
+  // Переключение раскрытия сервера
   const toggleServer = async (serverId) => {
     setExpanded((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
     setContainerMenuOpen((prev) => ({ ...prev, [serverId]: false }));
@@ -161,7 +163,7 @@ const Dashboard = () => {
     setEditForm({
       name: container.name,
       image: container.image,
-      ports: '',
+      ports: container.ports || '',
       env: '',
       extra_args: '',
       is_active: container.is_active !== undefined ? container.is_active : true
@@ -173,9 +175,10 @@ const Dashboard = () => {
   const closeEditModal = () => {
     setShowEditModal(false);
     setEditContainer(null);
+    setShowConfirm(false);
   };
 
-  // Функция для обновления контейнера Active статусом (PUT запрос)
+  // Функция для обновления Active статуса контейнера
   const updateContainerActiveStatus = async (serverId, containerId, is_active) => {
     try {
       const token = Cookies.get('access_token');
@@ -208,6 +211,7 @@ const Dashboard = () => {
       env.trim() !== '' ||
       extra_args.trim() !== ''
     );
+    // Если изменений только в Active, то сразу отправляем PUT запрос
     if (!fieldsChanged) {
       if (is_active !== editContainer.is_active) {
         await updateContainerActiveStatus(serverId, editContainer.id, is_active);
@@ -215,10 +219,13 @@ const Dashboard = () => {
       closeEditModal();
       return;
     }
-    const confirmRecreate = window.confirm("Are you sure you want to recreate the container with the new data?");
-    if (!confirmRecreate) {
-      return;
-    }
+    // Вместо window.confirm – показываем модальное окно подтверждения
+    setShowConfirm(true);
+  };
+
+  // Функция подтверждения пересоздания контейнера
+  const confirmEditSubmit = async (serverId) => {
+    const { name, image, ports, env, extra_args, is_active } = editForm;
     try {
       const token = Cookies.get('access_token');
       const response = await fetch(`http://127.0.0.1:8000/servers/${serverId}/containers/${editContainer.id}`, {
@@ -372,7 +379,7 @@ const Dashboard = () => {
                                 >
                                   {actionLoading[container.id] === 'restart' ? 'Restarting...' : 'Restart'}
                                 </button>
-                                <div className="relative" ref={menuRef}>
+                                <div className="relative">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -383,7 +390,8 @@ const Dashboard = () => {
                                     <MoreVertIcon className="h-6 w-6 text-black" />
                                   </button>
                                   {containerMenuOpen[container.id] && (
-                                    <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10">
+                                    <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10"
+                                         onClick={(e) => e.stopPropagation()}>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -492,7 +500,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, name: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='Server name'
+                  placeholder="Server name"
                 />
               </div>
               <div className="mb-4">
@@ -502,7 +510,7 @@ const Dashboard = () => {
                   value={serverForm.description}
                   onChange={e => setServerForm({ ...serverForm, description: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='Optional'
+                  placeholder="Optional"
                 />
               </div>
               <div className="mb-4">
@@ -513,7 +521,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, host: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='Example: 192.168.0.1'
+                  placeholder="Example: 192.168.0.1"
                 />
               </div>
               <div className="mb-4">
@@ -524,8 +532,7 @@ const Dashboard = () => {
                   onChange={e => setServerForm({ ...serverForm, port: e.target.value })}
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='Example: 443'
-
+                  placeholder="Example: 443"
                 />
               </div>
               <div className="mb-4">
@@ -547,7 +554,7 @@ const Dashboard = () => {
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="4"
-                  placeholder='Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----'
+                  placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
                 />
               </div>
               <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
@@ -598,7 +605,7 @@ const Dashboard = () => {
                   value={editForm.ports}
                   onChange={e => setEditForm({ ...editForm, ports: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='e.g. 80:80, 5432:5432'
+                  placeholder="e.g. 80:80, 5432:5432"
                 />
               </div>
               <div className="mb-4">
@@ -618,7 +625,7 @@ const Dashboard = () => {
                   value={editForm.extra_args}
                   onChange={e => setEditForm({ ...editForm, extra_args: e.target.value })}
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='e.g. --restart unless-stopped'
+                  placeholder="e.g. --restart unless-stopped"
                 />
               </div>
               {/* Переключатель Active */}
@@ -639,6 +646,159 @@ const Dashboard = () => {
               </div>
               <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
                 Update Container
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Recreate */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h3 className="text-xl font-bold mb-4 text-center">
+              Confirm Recreate
+            </h3>
+            <p className="mb-6 text-center">
+              Are you sure you want to recreate the container with the new data?
+            </p>
+            <div className="flex justify-around">
+              <button
+                onClick={() => {
+                  // Если подтверждено, выполняем обновление
+                  confirmEditSubmit(editContainer.server_id);
+                  setShowConfirm(false);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal for Adding Server */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
+            <button
+              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 text-2xl"
+              onClick={() => setShowModal(false)}
+              title="Close"
+            >
+              &times;
+            </button>
+            <h3 className="text-xl font-bold mb-4 text-center">Add Server</h3>
+            {formError && <p className="text-red-500 mb-4">{formError}</p>}
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setFormError('');
+              try {
+                const token = Cookies.get('access_token');
+                const response = await fetch('http://127.0.0.1:8000/servers/', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    ...serverForm,
+                    port: parseInt(serverForm.port, 10)
+                  }),
+                  credentials: 'include'
+                });
+                if (!response.ok) {
+                  throw new Error('Server creation failed.');
+                }
+                const newServer = await response.json();
+                setServers(prev => [...prev, newServer]);
+                setShowModal(false);
+                setServerForm({
+                  name: '',
+                  description: '',
+                  host: '',
+                  port: '',
+                  ssh_user: '',
+                  ssh_private_key: ''
+                });
+              } catch (err) {
+                setFormError(err.message);
+              }
+            }}>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Name:</label>
+                <input
+                  type="text"
+                  value={serverForm.name}
+                  onChange={e => setServerForm({ ...serverForm, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Server name"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Description:</label>
+                <input
+                  type="text"
+                  value={serverForm.description}
+                  onChange={e => setServerForm({ ...serverForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Host:</label>
+                <input
+                  type="text"
+                  value={serverForm.host}
+                  onChange={e => setServerForm({ ...serverForm, host: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Example: 192.168.0.1"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">Port:</label>
+                <input
+                  type="number"
+                  value={serverForm.port}
+                  onChange={e => setServerForm({ ...serverForm, port: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Example: 443"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block mb-1 font-semibold">SSH User:</label>
+                <input
+                  type="text"
+                  value={serverForm.ssh_user}
+                  onChange={e => setServerForm({ ...serverForm, ssh_user: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder='"root" by default'
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block mb-1 font-semibold">SSH Private Key:</label>
+                <textarea
+                  value={serverForm.ssh_private_key}
+                  onChange={e => setServerForm({ ...serverForm, ssh_private_key: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="4"
+                  placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
+                />
+              </div>
+              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                Create Server
               </button>
             </form>
           </div>
