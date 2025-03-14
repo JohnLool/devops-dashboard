@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import MoreVert from "@mui/icons-material/MoreVert";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
@@ -10,6 +13,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
   const [containers, setContainers] = useState({});
+  const [actionLoading, setActionLoading] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [serverForm, setServerForm] = useState({
     name: '',
@@ -20,6 +24,7 @@ const Dashboard = () => {
     ssh_private_key: ''
   });
   const [formError, setFormError] = useState('');
+  const [menuOpen, setMenuOpen] = useState({}); // состояние меню для каждого сервера
   const navigate = useNavigate();
 
   // Проверка авторизации
@@ -30,7 +35,7 @@ const Dashboard = () => {
     }
   }, [navigate]);
 
-  // Получение списка серверов
+  // Получение списка серверов с обработкой 401
   useEffect(() => {
     const fetchServers = async () => {
       try {
@@ -44,6 +49,12 @@ const Dashboard = () => {
           },
           credentials: 'include'
         });
+        if (response.status === 401) {
+          setError('Session expired. Please log in again.');
+          Cookies.remove('access_token', { path: '/' });
+          navigate('/login');
+          return;
+        }
         if (!response.ok) {
           throw new Error('Failed to fetch servers');
         }
@@ -57,7 +68,7 @@ const Dashboard = () => {
     };
 
     fetchServers();
-  }, []);
+  }, [navigate]);
 
   // Функция для получения контейнеров для сервера
   const fetchContainersForServer = async (serverId) => {
@@ -84,14 +95,21 @@ const Dashboard = () => {
   // Переключение раскрытия сервера и загрузка контейнеров, если нужно
   const toggleServer = async (serverId) => {
     setExpanded((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
+    // Закрываем меню MoreVert, если оно открыто
+    setMenuOpen((prev) => ({ ...prev, [serverId]: false }));
     if (!expanded[serverId] && !containers[serverId]) {
       await fetchContainersForServer(serverId);
     }
   };
 
+  // Функция для переключения меню MoreVert для сервера
+  const toggleMenu = (serverId, e) => {
+    e.stopPropagation(); // чтобы не вызывался toggleServer
+    setMenuOpen((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
+  };
+
   // Функция для управления контейнером (start, stop, restart)
   const handleControl = async (containerId, action, serverId) => {
-    // Set loading state for this container to the action name
     setActionLoading((prev) => ({ ...prev, [containerId]: action }));
     try {
       const token = Cookies.get('access_token');
@@ -114,9 +132,6 @@ const Dashboard = () => {
     }
   };
 
-  // Состояние для отслеживания загрузки действий над контейнерами
-  const [actionLoading, setActionLoading] = useState({});
-
   // Функция для выхода
   const handleLogout = () => {
     Cookies.remove('access_token', { path: '/' });
@@ -137,7 +152,7 @@ const Dashboard = () => {
         },
         body: JSON.stringify({
           ...serverForm,
-          port: parseInt(serverForm.port, 10)  // преобразование порта в число
+          port: parseInt(serverForm.port, 10)
         }),
         credentials: 'include'
       });
@@ -145,9 +160,8 @@ const Dashboard = () => {
         throw new Error('Server creation failed.');
       }
       const newServer = await response.json();
-      setServers((prev) => [...prev, newServer]);
+      setServers(prev => [...prev, newServer]);
       setShowModal(false);
-      // Сброс формы
       setServerForm({
         name: '',
         description: '',
@@ -167,28 +181,15 @@ const Dashboard = () => {
         <h2 className="text-3xl font-bold">Dashboard</h2>
         <div className="flex items-center space-x-4">
           <button
-              onClick={() => setShowModal(true)}
-              className="p-2 text-black rounded-full hover:bg-gray-200 transition"
-              title="Add Server"
+            onClick={() => setShowModal(true)}
+            className="px-4 py-2 bg-white border border-black text-black rounded hover:bg-green-200 transition"
+            title="Add Server"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                 stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 1 H12 V12 H1.5 V23 V12 H12 V22.5 H23 H12 V12 H22.5 V0.5"/>
-            </svg>
+            Add Server
           </button>
           <button
-              onClick={() => setShowModal(true)}
-              className="p-2 text-black rounded-full hover:bg-gray-200 transition"
-              title="Add Server"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                 stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M22.5 1 V12.5 H1.5 V23"/>
-            </svg>
-          </button>
-          <button
-              onClick={handleLogout}
-              className="py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            onClick={handleLogout}
+            className="py-2 px-4 bg-red-600 text-white rounded hover:bg-red-700 transition"
           >
             Logout
           </button>
@@ -196,27 +197,42 @@ const Dashboard = () => {
       </div>
       {error && <p className="text-red-500 mb-4">{error}</p>}
       {loading ? (
-          <p className="text-gray-600">Loading servers...</p>
+        <p className="text-gray-600">Loading servers...</p>
       ) : servers.length > 0 ? (
-          <div className="space-y-4">
-            {servers.map((server) => (
-                <div key={server.id} className="border rounded shadow-sm">
-                  <div
-                      className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200 transition"
-                      onClick={() => toggleServer(server.id)}
+        <div className="space-y-4">
+          {servers.map((server) => (
+            <div key={server.id} className="border rounded shadow-sm relative">
+              <div
+                className="flex justify-between items-center p-4 bg-gray-100 cursor-pointer hover:bg-gray-200 transition"
+                onClick={() => toggleServer(server.id)}
               >
                 <div>
                   <h3 className="text-xl font-semibold">{server.name}</h3>
                   <p>{server.host}:{server.port}</p>
                 </div>
-                <div>
+                <div className="flex items-center space-x-2">
+                  {/* Кнопка MoreVert для показа меню */}
+                  <button onClick={(e) => toggleMenu(server.id, e)} className="p-1">
+                    <MoreVert className="h-6 w-6 text-black" />
+                  </button>
                   {expanded[server.id] ? (
-                      <KeyboardArrowUpIcon fontSize="large" />
+                    <KeyboardArrowUpIcon fontSize="large" />
                   ) : (
-                      <KeyboardArrowDownIcon fontSize="large" />
+                    <KeyboardArrowDownIcon fontSize="large" />
                   )}
                 </div>
               </div>
+              {/* Меню MoreVert */}
+              {menuOpen[server.id] && (
+                <div className="absolute top-12 right-4 bg-white border border-gray-300 rounded shadow-md z-10">
+                  <button className="flex items-center px-4 py-2 hover:bg-gray-100 w-full">
+                    <EditIcon className="h-5 w-5 mr-2" /> Edit
+                  </button>
+                  <button className="flex items-center px-4 py-2 hover:bg-gray-100 w-full">
+                    <DeleteIcon className="h-5 w-5 mr-2" /> Delete
+                  </button>
+                </div>
+              )}
               {expanded[server.id] && (
                 <div className="p-4">
                   {containers[server.id] ? (
@@ -230,37 +246,36 @@ const Dashboard = () => {
                                 <button
                                   onClick={() => handleControl(container.id, 'start', server.id)}
                                   disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-green-700 hover:bg-green-800 transition ${actionLoading[container.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-green-600 hover:bg-green-700 transition ${actionLoading[container.id] === 'start' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                  {actionLoading[container.id] && actionLoading[container.id] === 'start' ? 'Starting...' : 'Start'}
+                                  {actionLoading[container.id] === 'start' ? 'Starting...' : 'Start'}
                                 </button>
                                 <button
                                   onClick={() => handleControl(container.id, 'stop', server.id)}
                                   disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-red-600 hover:bg-red-700 transition ${actionLoading[container.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-red-600 hover:bg-red-700 transition ${actionLoading[container.id] === 'stop' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                  {actionLoading[container.id] && actionLoading[container.id] === 'stop' ? 'Stopping...' : 'Stop'}
+                                  {actionLoading[container.id] === 'stop' ? 'Stopping...' : 'Stop'}
                                 </button>
                                 <button
                                   onClick={() => handleControl(container.id, 'restart', server.id)}
                                   disabled={actionLoading[container.id]}
-                                  className={`px-2 py-1 rounded text-white text-sm bg-blue-600 hover:bg-blue-700 transition ${actionLoading[container.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`px-2 py-1 rounded text-white text-sm bg-blue-600 hover:bg-blue-700 transition ${actionLoading[container.id] === 'restart' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                  {actionLoading[container.id] && actionLoading[container.id] === 'restart' ? 'Restarting...' : 'Restart'}
+                                  {actionLoading[container.id] === 'restart' ? 'Restarting...' : 'Restart'}
                                 </button>
                               </div>
                             </div>
                             <p className="text-sm text-gray-600">
-                              Status: {actionLoading[container.id] ? (
-                                // Используем значение, которое определяет тип действия
-                                actionLoading[container.id] === 'start'
+                              Status: {actionLoading[container.id]
+                                ? actionLoading[container.id] === 'start'
                                   ? 'Starting...'
                                   : actionLoading[container.id] === 'stop'
                                   ? 'Stopping...'
                                   : actionLoading[container.id] === 'restart'
                                   ? 'Restarting...'
                                   : 'Updating...'
-                              ) : container.status}
+                                : container.status}
                             </p>
                           </li>
                         ))}

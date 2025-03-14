@@ -41,6 +41,14 @@ class ContainerResponses:
         )
 
     @staticmethod
+    def recreating(container_id: int) -> ContainerResponse:
+        return ContainerResponse(
+            container_id=container_id,
+            status="recreating",
+            message="Container is recreating. Please check the status later."
+        )
+
+    @staticmethod
     def deleting(container_id: int) -> ContainerResponse:
         return ContainerResponse(
             container_id=container_id,
