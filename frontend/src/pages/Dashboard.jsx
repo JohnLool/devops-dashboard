@@ -1,3 +1,4 @@
+// src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
@@ -9,7 +10,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import AddServerModal from '../components/AddServerModal';
 import EditContainerModal from '../components/EditContainerModal';
 import ConfirmModal from '../components/ConfirmModal';
-
+import EditServerModal from '../components/EditServerModal';
+import ConfirmServerModal from '../components/ConfirmServerModal';
+import Spinner from '../components/Spinner';
 
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
@@ -30,6 +33,7 @@ const Dashboard = () => {
   const [formError, setFormError] = useState('');
   const [serverSubmitting, setServerSubmitting] = useState(false);
   const [containerMenuOpen, setContainerMenuOpen] = useState({});
+  const [serverMenuOpen, setServerMenuOpen] = useState({});
   const [showEditModal, setShowEditModal] = useState(false);
   const [editContainer, setEditContainer] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -42,12 +46,27 @@ const Dashboard = () => {
   });
   const [containerSubmitting, setContainerSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showEditServerModal, setShowEditServerModal] = useState(false);
+  const [editServer, setEditServer] = useState(null);
+  const [editServerForm, setEditServerForm] = useState({
+    name: '',
+    description: '',
+    host: '',
+    port: '',
+    ssh_user: '',
+    ssh_private_key: ''
+  });
+  const [serverEditSubmitting, setServerEditSubmitting] = useState(false);
+  const [showConfirmServer, setShowConfirmServer] = useState(false);
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
-  // Глобальный обработчик для закрытия всех контейнерных меню при клике вне
+  // Глобальные обработчики для закрытия меню
   useEffect(() => {
-    const handleDocumentClick = () => setContainerMenuOpen({});
+    const handleDocumentClick = () => {
+      setContainerMenuOpen({});
+      setServerMenuOpen({});
+    };
     document.addEventListener('click', handleDocumentClick);
     return () => document.removeEventListener('click', handleDocumentClick);
   }, []);
@@ -120,6 +139,7 @@ const Dashboard = () => {
   const toggleServer = async (serverId) => {
     setExpanded((prev) => ({ ...prev, [serverId]: !prev[serverId] }));
     setContainerMenuOpen((prev) => ({ ...prev, [serverId]: false }));
+    setServerMenuOpen((prev) => ({ ...prev, [serverId]: false }));
     if (!expanded[serverId] && !containers[serverId]) {
       await fetchContainersForServer(serverId);
     }
@@ -131,6 +151,15 @@ const Dashboard = () => {
     setContainerMenuOpen((prev) => ({
       ...prev,
       [containerId]: !prev[containerId]
+    }));
+  };
+
+  // Переключение меню MoreVert для сервера
+  const toggleServerMenu = (serverId, e) => {
+    e.stopPropagation();
+    setServerMenuOpen((prev) => ({
+      ...prev,
+      [serverId]: !prev[serverId]
     }));
   };
 
@@ -158,7 +187,7 @@ const Dashboard = () => {
     }
   };
 
-  // Открытие модального окна редактирования контейнера
+  // Функция для открытия модального окна редактирования контейнера
   const openEditModal = (container, serverId) => {
     setEditContainer({ ...container, server_id: serverId });
     setEditForm({
@@ -171,6 +200,28 @@ const Dashboard = () => {
     });
     setShowEditModal(true);
     setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
+  };
+
+  // Функция для открытия модального окна редактирования сервера
+  const openEditServerModal = (server) => {
+    setEditServer(server);
+    setEditServerForm({
+      name: server.name,
+      description: server.description || '',
+      host: server.host,
+      port: server.port,
+      ssh_user: server.ssh_user,
+      ssh_private_key: server.ssh_private_key
+    });
+    setShowEditServerModal(true);
+    setServerMenuOpen((prev) => ({ ...prev, [server.id]: false }));
+  };
+
+  const closeEditServerModal = () => {
+    setShowEditServerModal(false);
+    setEditServer(null);
+    setShowConfirmServer(false);
+    setServerEditSubmitting(false);
   };
 
   const closeEditModal = () => {
@@ -221,6 +272,7 @@ const Dashboard = () => {
       closeEditModal();
       return;
     }
+    // Вместо browser alert – показываем модальное окно подтверждения
     setShowConfirm(true);
     setContainerSubmitting(false);
   };
@@ -257,6 +309,61 @@ const Dashboard = () => {
     } catch (err) {
       console.error(err);
       setContainerSubmitting(false);
+    }
+  };
+
+  // Функция для обновления сервера (PUT запрос)
+  const updateServer = async (serverId, updateData) => {
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${serverId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updateData),
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Server update failed');
+      }
+      const updatedServer = await response.json();
+      setServers(prev => prev.map(s => (s.id === updatedServer.id ? updatedServer : s)));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Функция обработки отправки формы редактирования сервера
+  const handleEditServerSubmit = async (e) => {
+    e.preventDefault();
+    setServerEditSubmitting(true);
+    const fieldsChanged = (
+      editServerForm.name !== editServer.name ||
+      editServerForm.description !== (editServer.description || '') ||
+      editServerForm.host !== editServer.host ||
+      editServerForm.port !== editServer.port ||
+      editServerForm.ssh_user !== editServer.ssh_user ||
+      editServerForm.ssh_private_key !== editServer.ssh_private_key
+    );
+    if (!fieldsChanged) {
+      closeEditServerModal();
+      return;
+    }
+    setShowConfirmServer(true);
+    setServerEditSubmitting(false);
+  };
+
+  // Функция подтверждения обновления сервера (из модального окна подтверждения)
+  const confirmServerEditSubmit = async (serverId) => {
+    setServerEditSubmitting(true);
+    try {
+      await updateServer(serverId, editServerForm);
+      closeEditServerModal();
+    } catch (err) {
+      console.error(err);
+      setServerEditSubmitting(false);
     }
   };
 
@@ -342,9 +449,40 @@ const Dashboard = () => {
                   <p>{server.host}:{server.port}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <button onClick={(e) => e.stopPropagation()} className="p-1">
-                    {/* Серверное меню можно добавить сюда */}
-                  </button>
+                  {/* Серверное меню */}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setServerMenuOpen(prev => ({ ...prev, [server.id]: !prev[server.id] }));
+                      }}
+                      className="p-1"
+                    >
+                      <MoreVertIcon className="h-6 w-6 text-black" />
+                    </button>
+                    {serverMenuOpen[server.id] && (
+                      <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditServerModal(server);
+                          }}
+                          className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                        >
+                          <EditIcon className="h-5 w-5 mr-2" /> Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setServerMenuOpen(prev => ({ ...prev, [server.id]: false }));
+                          }}
+                          className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                        >
+                          <DeleteIcon className="h-5 w-5 mr-2" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {expanded[server.id] ? (
                     <KeyboardArrowUpIcon fontSize="large" />
                   ) : (
@@ -475,6 +613,22 @@ const Dashboard = () => {
         setShowConfirm={setShowConfirm}
         confirmEditSubmit={confirmEditSubmit}
         serverId={editContainer ? editContainer.server_id : null}
+      />
+
+      <EditServerModal
+        showEditServerModal={showEditServerModal}
+        editServerForm={editServerForm}
+        setEditServerForm={setEditServerForm}
+        handleEditServerSubmit={handleEditServerSubmit}
+        serverEditSubmitting={serverEditSubmitting}
+        closeEditServerModal={closeEditServerModal}
+      />
+
+      <ConfirmServerModal
+        showConfirmServer={showConfirmServer}
+        setShowConfirmServer={setShowConfirmServer}
+        confirmServerEditSubmit={confirmServerEditSubmit}
+        serverId={editServer ? editServer.id : null}
       />
     </div>
   );
