@@ -7,6 +7,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import InfoIcon from '@mui/icons-material/Info';
 import AddServerModal from '../components/AddServerModal';
 import EditContainerModal from '../components/EditContainerModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -14,7 +15,9 @@ import EditServerModal from '../components/EditServerModal';
 import ConfirmServerDeleteModal from '../components/ConfirmServerDeleteModal';
 import ConfirmContainerDeleteModal from '../components/ConfirmContainerDeleteModal';
 import AddContainerModal from '../components/AddContainerModal';
-
+import InfoServerModal from '../components/InfoServerModal';
+import InfoContainerModal from '../components/InfoContainerModal';
+import Spinner from '../components/Spinner';
 
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
@@ -76,6 +79,12 @@ const Dashboard = () => {
   const [containerFormSubmitting, setContainerFormSubmitting] = useState(false);
   const [serverDeleteLoading, setServerDeleteLoading] = useState(false);
   const [containerDeleteLoading, setContainerDeleteLoading] = useState(false);
+
+  // Состояния для модальных окон Info
+  const [showInfoServerModal, setShowInfoServerModal] = useState(false);
+  const [infoServer, setInfoServer] = useState(null);
+  const [showInfoContainerModal, setShowInfoContainerModal] = useState(false);
+  const [infoContainer, setInfoContainer] = useState(null);
 
   const navigate = useNavigate();
   const menuRef = useRef(null);
@@ -503,6 +512,20 @@ const Dashboard = () => {
     }
   };
 
+  // Функция для открытия модального окна отображения информации о сервере
+  const openInfoServerModal = (server) => {
+    setInfoServer(server);
+    setShowInfoServerModal(true);
+    setServerMenuOpen((prev) => ({ ...prev, [server.id]: false }));
+  };
+
+  // Функция для открытия модального окна отображения информации о контейнере
+  const openInfoContainerModal = (container, serverId) => {
+    setInfoContainer({ ...container, server_id: serverId });
+    setShowInfoContainerModal(true);
+    setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
+  };
+
   // Функция для выхода
   const handleLogout = () => {
     Cookies.remove('access_token', { path: '/' });
@@ -585,7 +608,7 @@ const Dashboard = () => {
                   <p>{server.host}:{server.port}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {/* Кнопка Add Container */}
+                  {/* Кнопка для открытия модального окна добавления контейнера */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -609,6 +632,15 @@ const Dashboard = () => {
                     </button>
                     {serverMenuOpen[server.id] && (
                       <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openInfoServerModal(server);
+                          }}
+                          className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                        >
+                          <InfoIcon className="h-5 w-5 mr-2" /> Info
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -646,7 +678,7 @@ const Dashboard = () => {
                         {containers[server.id].map((container) => (
                           <li
                             key={container.id}
-                            className={`border p-2 rounded relative ${!container.is_active ? 'bg-gray-200 opacity-50' : ''}`}
+                            className={`border p-2 rounded relative ${!container.is_active ? 'bg-gray-200' : ''}`}
                           >
                             <div className="flex justify-between items-center mb-1">
                               <p className="font-medium">{container.name}</p>
@@ -684,6 +716,15 @@ const Dashboard = () => {
                                   </button>
                                   {containerMenuOpen[container.id] && (
                                     <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          openInfoContainerModal(container, server.id);
+                                        }}
+                                        className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
+                                      >
+                                        <InfoIcon className="h-5 w-5 mr-2" /> Info
+                                      </button>
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -793,6 +834,18 @@ const Dashboard = () => {
         setContainerForm={setContainerForm}
         handleSubmit={handleAddContainerSubmit}
         submitting={containerFormSubmitting}
+      />
+
+      <InfoServerModal
+        show={showInfoServerModal}
+        server={infoServer}
+        onClose={() => setShowInfoServerModal(false)}
+      />
+
+      <InfoContainerModal
+        show={showInfoContainerModal}
+        container={infoContainer}
+        onClose={() => setShowInfoContainerModal(false)}
       />
     </div>
   );
