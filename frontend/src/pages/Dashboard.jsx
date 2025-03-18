@@ -1,4 +1,3 @@
-// src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
@@ -7,12 +6,14 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add"; // Импорт иконки плюса
 import AddServerModal from '../components/AddServerModal';
 import EditContainerModal from '../components/EditContainerModal';
 import ConfirmModal from '../components/ConfirmModal';
 import EditServerModal from '../components/EditServerModal';
 import ConfirmServerDeleteModal from '../components/ConfirmServerDeleteModal';
 import ConfirmContainerDeleteModal from '../components/ConfirmContainerDeleteModal';
+import AddContainerModal from '../components/AddContainerModal';
 import Spinner from '../components/Spinner';
 
 const Dashboard = () => {
@@ -47,13 +48,6 @@ const Dashboard = () => {
   });
   const [containerSubmitting, setContainerSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  // Новые состояния для удаления серверов и контейнеров
-  const [showConfirmServerDelete, setShowConfirmServerDelete] = useState(false);
-  const [serverToDelete, setServerToDelete] = useState(null);
-  const [showConfirmContainerDelete, setShowConfirmContainerDelete] = useState(false);
-  const [containerToDelete, setContainerToDelete] = useState(null);
-
   const [showEditServerModal, setShowEditServerModal] = useState(false);
   const [editServer, setEditServer] = useState(null);
   const [editServerForm, setEditServerForm] = useState({
@@ -66,6 +60,20 @@ const Dashboard = () => {
   });
   const [serverEditSubmitting, setServerEditSubmitting] = useState(false);
   const [showConfirmServer, setShowConfirmServer] = useState(false);
+  const [showConfirmServerDelete, setShowConfirmServerDelete] = useState(false);
+  const [serverToDelete, setServerToDelete] = useState(null);
+  const [showConfirmContainerDelete, setShowConfirmContainerDelete] = useState(false);
+  const [containerToDelete, setContainerToDelete] = useState(null);
+  const [showAddContainerModal, setShowAddContainerModal] = useState(false);
+  const [addContainerServerId, setAddContainerServerId] = useState(null);
+  const [containerForm, setContainerForm] = useState({
+    name: '',
+    image: '',
+    ports: '',
+    env: '',
+    extra_args: ''
+  });
+  const [containerFormSubmitting, setContainerFormSubmitting] = useState(false);
 
   const navigate = useNavigate();
   const menuRef = useRef(null);
@@ -433,6 +441,62 @@ const Dashboard = () => {
     }
   };
 
+  // Функция для открытия модального окна создания контейнера
+  const openAddContainerModal = (serverId) => {
+    setAddContainerServerId(serverId);
+    setContainerForm({
+      name: '',
+      image: '',
+      ports: '',
+      env: '',
+      extra_args: ''
+    });
+    setShowAddContainerModal(true);
+  };
+
+  // Функция обработки отправки формы создания контейнера
+  const handleAddContainerSubmit = async (e) => {
+    e.preventDefault();
+    setContainerFormSubmitting(true);
+
+    let envParsed = {};
+    if (containerForm.env) {
+      try {
+        envParsed = JSON.parse(containerForm.env);
+      } catch (error) {
+        console.error("Invalid JSON in env field", error);
+        alert("Invalid JSON format in environment variables.");
+        setContainerFormSubmitting(false);
+        return;
+      }
+    }
+
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${addContainerServerId}/containers/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...containerForm,
+          env: envParsed
+        }),
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Container creation failed.');
+      }
+      await fetchContainersForServer(addContainerServerId);
+      setShowAddContainerModal(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setContainerFormSubmitting(false);
+    }
+  };
+
   // Функция для выхода
   const handleLogout = () => {
     Cookies.remove('access_token', { path: '/' });
@@ -515,6 +579,17 @@ const Dashboard = () => {
                   <p>{server.host}:{server.port}</p>
                 </div>
                 <div className="flex items-center space-x-2">
+                  {/* Кнопка для добавления контейнера */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAddContainerModal(server.id);
+                    }}
+                    className="p-1"
+                    title="Add Container"
+                  >
+                    <AddIcon className="h-6 w-6 text-gray-800 cursor-pointer hover:text-gray-700 transition" />
+                  </button>
                   {/* Серверное меню */}
                   <div className="relative">
                     <button
@@ -524,7 +599,7 @@ const Dashboard = () => {
                       }}
                       className="p-1"
                     >
-                      <MoreVertIcon className="h-6 w-6 text-black" />
+                      <MoreVertIcon className="h-6 w-6 text-gray-800 cursor-pointer hover:text-gray-700 transition" />
                     </button>
                     {serverMenuOpen[server.id] && (
                       <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
@@ -540,7 +615,6 @@ const Dashboard = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // Открываем модальное окно подтверждения удаления сервера
                             setServerToDelete(server);
                             setShowConfirmServerDelete(true);
                           }}
@@ -600,7 +674,7 @@ const Dashboard = () => {
                                     }}
                                     className="p-1"
                                   >
-                                    <MoreVertIcon className="h-6 w-6 text-black" />
+                                    <MoreVertIcon className="h-6 w-6 text-gray-800 cursor-pointer hover:text-gray-700 transition" />
                                   </button>
                                   {containerMenuOpen[container.id] && (
                                     <div className="absolute -right-4 top-8 transform scale-90 bg-white border border-gray-300 rounded shadow-md z-10" onClick={(e) => e.stopPropagation()}>
@@ -702,6 +776,15 @@ const Dashboard = () => {
         show={showConfirmContainerDelete}
         onConfirm={confirmContainerDelete}
         onCancel={() => setShowConfirmContainerDelete(false)}
+      />
+
+      <AddContainerModal
+        show={showAddContainerModal}
+        onClose={() => setShowAddContainerModal(false)}
+        containerForm={containerForm}
+        setContainerForm={setContainerForm}
+        handleSubmit={handleAddContainerSubmit}
+        submitting={containerFormSubmitting}
       />
     </div>
   );
