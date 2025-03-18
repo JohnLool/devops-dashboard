@@ -6,7 +6,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import AddIcon from "@mui/icons-material/Add"; // Импорт иконки плюса
+import AddIcon from "@mui/icons-material/Add";
 import AddServerModal from '../components/AddServerModal';
 import EditContainerModal from '../components/EditContainerModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -14,7 +14,7 @@ import EditServerModal from '../components/EditServerModal';
 import ConfirmServerDeleteModal from '../components/ConfirmServerDeleteModal';
 import ConfirmContainerDeleteModal from '../components/ConfirmContainerDeleteModal';
 import AddContainerModal from '../components/AddContainerModal';
-import Spinner from '../components/Spinner';
+
 
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
@@ -74,6 +74,8 @@ const Dashboard = () => {
     extra_args: ''
   });
   const [containerFormSubmitting, setContainerFormSubmitting] = useState(false);
+  const [serverDeleteLoading, setServerDeleteLoading] = useState(false);
+  const [containerDeleteLoading, setContainerDeleteLoading] = useState(false);
 
   const navigate = useNavigate();
   const menuRef = useRef(null);
@@ -397,8 +399,9 @@ const Dashboard = () => {
     setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
   };
 
-  // Функция удаления сервера
+  // Функция удаления сервера с показом спиннера
   const confirmServerDelete = async () => {
+    setServerDeleteLoading(true);
     try {
       const token = Cookies.get('access_token');
       const response = await fetch(`http://127.0.0.1:8000/servers/${serverToDelete.id}`, {
@@ -416,11 +419,14 @@ const Dashboard = () => {
       setShowConfirmServerDelete(false);
     } catch (err) {
       console.error(err);
+    } finally {
+      setServerDeleteLoading(false);
     }
   };
 
-  // Функция удаления контейнера
+  // Функция удаления контейнера с показом спиннера
   const confirmContainerDelete = async () => {
+    setContainerDeleteLoading(true);
     try {
       const token = Cookies.get('access_token');
       const response = await fetch(`http://127.0.0.1:8000/servers/${containerToDelete.server_id}/containers/${containerToDelete.id}`, {
@@ -438,6 +444,8 @@ const Dashboard = () => {
       setShowConfirmContainerDelete(false);
     } catch (err) {
       console.error(err);
+    } finally {
+      setContainerDeleteLoading(false);
     }
   };
 
@@ -458,7 +466,6 @@ const Dashboard = () => {
   const handleAddContainerSubmit = async (e) => {
     e.preventDefault();
     setContainerFormSubmitting(true);
-
     let envParsed = {};
     if (containerForm.env) {
       try {
@@ -470,7 +477,6 @@ const Dashboard = () => {
         return;
       }
     }
-
     try {
       const token = Cookies.get('access_token');
       const response = await fetch(`http://127.0.0.1:8000/servers/${addContainerServerId}/containers/`, {
@@ -479,11 +485,11 @@ const Dashboard = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({
           ...containerForm,
           env: envParsed
-        }),
-        credentials: 'include'
+        })
       });
       if (!response.ok) {
         throw new Error('Container creation failed.');
@@ -579,7 +585,7 @@ const Dashboard = () => {
                   <p>{server.host}:{server.port}</p>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {/* Кнопка для добавления контейнера */}
+                  {/* Кнопка Add Container */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -770,12 +776,14 @@ const Dashboard = () => {
         show={showConfirmServerDelete}
         onConfirm={confirmServerDelete}
         onCancel={() => setShowConfirmServerDelete(false)}
+        loading={serverDeleteLoading}
       />
 
       <ConfirmContainerDeleteModal
         show={showConfirmContainerDelete}
         onConfirm={confirmContainerDelete}
         onCancel={() => setShowConfirmContainerDelete(false)}
+        loading={containerDeleteLoading}
       />
 
       <AddContainerModal

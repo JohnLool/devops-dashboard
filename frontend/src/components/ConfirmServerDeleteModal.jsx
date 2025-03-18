@@ -1,6 +1,7 @@
 import React from 'react';
+import Spinner from './Spinner';
 
-const ConfirmServerDeleteModal = ({ show, onConfirm, onCancel }) => {
+const ConfirmServerDeleteModal = ({ show, onConfirm, onCancel, loading }) => {
   if (!show) return null;
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -12,12 +13,15 @@ const ConfirmServerDeleteModal = ({ show, onConfirm, onCancel }) => {
         <div className="flex justify-around">
           <button
             onClick={onConfirm}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
+            disabled={loading}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition flex items-center"
           >
-            Confirm
+            {loading && <Spinner />}
+            {loading ? 'Deleting...' : 'Confirm'}
           </button>
           <button
             onClick={onCancel}
+            disabled={loading}
             className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400 transition"
           >
             Cancel
