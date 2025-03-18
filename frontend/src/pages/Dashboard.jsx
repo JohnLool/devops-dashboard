@@ -11,7 +11,8 @@ import AddServerModal from '../components/AddServerModal';
 import EditContainerModal from '../components/EditContainerModal';
 import ConfirmModal from '../components/ConfirmModal';
 import EditServerModal from '../components/EditServerModal';
-import ConfirmServerModal from '../components/ConfirmServerModal';
+import ConfirmServerDeleteModal from '../components/ConfirmServerDeleteModal';
+import ConfirmContainerDeleteModal from '../components/ConfirmContainerDeleteModal';
 import Spinner from '../components/Spinner';
 
 const Dashboard = () => {
@@ -46,6 +47,13 @@ const Dashboard = () => {
   });
   const [containerSubmitting, setContainerSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Новые состояния для удаления серверов и контейнеров
+  const [showConfirmServerDelete, setShowConfirmServerDelete] = useState(false);
+  const [serverToDelete, setServerToDelete] = useState(null);
+  const [showConfirmContainerDelete, setShowConfirmContainerDelete] = useState(false);
+  const [containerToDelete, setContainerToDelete] = useState(null);
+
   const [showEditServerModal, setShowEditServerModal] = useState(false);
   const [editServer, setEditServer] = useState(null);
   const [editServerForm, setEditServerForm] = useState({
@@ -58,6 +66,7 @@ const Dashboard = () => {
   });
   const [serverEditSubmitting, setServerEditSubmitting] = useState(false);
   const [showConfirmServer, setShowConfirmServer] = useState(false);
+
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
@@ -187,7 +196,7 @@ const Dashboard = () => {
     }
   };
 
-  // Функция для открытия модального окна редактирования контейнера
+  // Открытие модального окна редактирования контейнера
   const openEditModal = (container, serverId) => {
     setEditContainer({ ...container, server_id: serverId });
     setEditForm({
@@ -202,7 +211,7 @@ const Dashboard = () => {
     setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
   };
 
-  // Функция для открытия модального окна редактирования сервера
+  // Открытие модального окна редактирования сервера
   const openEditServerModal = (server) => {
     setEditServer(server);
     setEditServerForm({
@@ -272,7 +281,6 @@ const Dashboard = () => {
       closeEditModal();
       return;
     }
-    // Вместо browser alert – показываем модальное окно подтверждения
     setShowConfirm(true);
     setContainerSubmitting(false);
   };
@@ -364,6 +372,64 @@ const Dashboard = () => {
     } catch (err) {
       console.error(err);
       setServerEditSubmitting(false);
+    }
+  };
+
+  // Функция для открытия модального окна удаления сервера
+  const openServerDeleteModal = (server) => {
+    setServerToDelete(server);
+    setShowConfirmServerDelete(true);
+    setServerMenuOpen((prev) => ({ ...prev, [server.id]: false }));
+  };
+
+  // Функция для открытия модального окна удаления контейнера
+  const openContainerDeleteModal = (container, serverId) => {
+    setContainerToDelete({ ...container, server_id: serverId });
+    setShowConfirmContainerDelete(true);
+    setContainerMenuOpen((prev) => ({ ...prev, [container.id]: false }));
+  };
+
+  // Функция удаления сервера
+  const confirmServerDelete = async () => {
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${serverToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Server deletion failed');
+      }
+      setServers(prev => prev.filter(s => s.id !== serverToDelete.id));
+      setShowConfirmServerDelete(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Функция удаления контейнера
+  const confirmContainerDelete = async () => {
+    try {
+      const token = Cookies.get('access_token');
+      const response = await fetch(`http://127.0.0.1:8000/servers/${containerToDelete.server_id}/containers/${containerToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+      if (!response.ok) {
+        throw new Error('Container deletion failed');
+      }
+      await fetchContainersForServer(containerToDelete.server_id);
+      setShowConfirmContainerDelete(false);
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -474,7 +540,9 @@ const Dashboard = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setServerMenuOpen(prev => ({ ...prev, [server.id]: false }));
+                            // Открываем модальное окно подтверждения удаления сервера
+                            setServerToDelete(server);
+                            setShowConfirmServerDelete(true);
                           }}
                           className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
                         >
@@ -498,7 +566,7 @@ const Dashboard = () => {
                         {containers[server.id].map((container) => (
                           <li
                             key={container.id}
-                            className={`border p-2 rounded relative ${!container.is_active ? 'bg-gray-200' : ''}`}
+                            className={`border p-2 rounded relative ${!container.is_active ? 'bg-gray-200 opacity-50' : ''}`}
                           >
                             <div className="flex justify-between items-center mb-1">
                               <p className="font-medium">{container.name}</p>
@@ -548,7 +616,7 @@ const Dashboard = () => {
                                       <button
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          setContainerMenuOpen(prev => ({ ...prev, [container.id]: false }));
+                                          openContainerDeleteModal(container, server.id);
                                         }}
                                         className="flex items-center px-3 py-2 hover:bg-gray-100 w-full"
                                       >
@@ -624,11 +692,16 @@ const Dashboard = () => {
         closeEditServerModal={closeEditServerModal}
       />
 
-      <ConfirmServerModal
-        showConfirmServer={showConfirmServer}
-        setShowConfirmServer={setShowConfirmServer}
-        confirmServerEditSubmit={confirmServerEditSubmit}
-        serverId={editServer ? editServer.id : null}
+      <ConfirmServerDeleteModal
+        show={showConfirmServerDelete}
+        onConfirm={confirmServerDelete}
+        onCancel={() => setShowConfirmServerDelete(false)}
+      />
+
+      <ConfirmContainerDeleteModal
+        show={showConfirmContainerDelete}
+        onConfirm={confirmContainerDelete}
+        onCancel={() => setShowConfirmContainerDelete(false)}
       />
     </div>
   );
