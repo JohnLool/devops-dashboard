@@ -6,13 +6,10 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import AddServerModal from '../components/AddServerModal';
+import EditContainerModal from '../components/EditContainerModal';
+import ConfirmModal from '../components/ConfirmModal';
 
-const Spinner = () => (
-  <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-  </svg>
-);
 
 const Dashboard = () => {
   const [servers, setServers] = useState([]);
@@ -316,7 +313,7 @@ const Dashboard = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setShowModal(true)}
-            className="px-4 py-2 bg-white border border-black text-black rounded hover:bg-green-200 transition"
+            className="px-4 py-2 bg-white border border-gray-300 text-black rounded hover:bg-green-200 transition"
             title="Add Server"
           >
             Add Server
@@ -453,249 +450,32 @@ const Dashboard = () => {
         <p className="text-gray-600">No servers found.</p>
       )}
 
-      {/* Modal for Adding Server */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-            <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 text-2xl"
-              onClick={() => setShowModal(false)}
-              title="Close"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl font-bold mb-4 text-center">Add Server</h3>
-            {formError && <p className="text-red-500 mb-4">{formError}</p>}
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setFormError('');
-              setServerSubmitting(true);
-              try {
-                const token = Cookies.get('access_token');
-                const response = await fetch('http://127.0.0.1:8000/servers/', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({
-                    ...serverForm,
-                    port: parseInt(serverForm.port, 10)
-                  }),
-                  credentials: 'include'
-                });
-                if (!response.ok) {
-                  throw new Error('Server creation failed.');
-                }
-                const newServer = await response.json();
-                setServers(prev => [...prev, newServer]);
-                setShowModal(false);
-                setServerForm({
-                  name: '',
-                  description: '',
-                  host: '',
-                  port: '',
-                  ssh_user: '',
-                  ssh_private_key: ''
-                });
-              } catch (err) {
-                setFormError(err.message);
-              } finally {
-                setServerSubmitting(false);
-              }
-            }}>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Name:</label>
-                <input
-                  type="text"
-                  value={serverForm.name}
-                  onChange={e => setServerForm({ ...serverForm, name: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Server name"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Description:</label>
-                <input
-                  type="text"
-                  value={serverForm.description}
-                  onChange={e => setServerForm({ ...serverForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Host:</label>
-                <input
-                  type="text"
-                  value={serverForm.host}
-                  onChange={e => setServerForm({ ...serverForm, host: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Example: 192.168.0.1"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Port:</label>
-                <input
-                  type="number"
-                  value={serverForm.port}
-                  onChange={e => setServerForm({ ...serverForm, port: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Example: 443"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">SSH User:</label>
-                <input
-                  type="text"
-                  value={serverForm.ssh_user}
-                  onChange={e => setServerForm({ ...serverForm, ssh_user: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder='"root" by default'
-                />
-              </div>
-              <div className="mb-6">
-                <label className="block mb-1 font-semibold">SSH Private Key:</label>
-                <textarea
-                  value={serverForm.ssh_private_key}
-                  onChange={e => setServerForm({ ...serverForm, ssh_private_key: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="4"
-                  placeholder="Your SSH key which starts with -----BEGIN OPENSSH PRIVATE KEY----- and ends with -----END OPENSSH PRIVATE KEY-----"
-                />
-              </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
-                {serverSubmitting && <Spinner />}
-                {serverSubmitting ? 'Creating...' : 'Create Server'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddServerModal
+        showModal={showModal}
+        setShowModal={setShowModal}
+        formError={formError}
+        serverForm={serverForm}
+        setServerForm={setServerForm}
+        handleServerFormSubmit={handleServerFormSubmit}
+        serverSubmitting={serverSubmitting}
+      />
 
-      {/* Modal for Editing Container */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg relative">
-            <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 text-2xl"
-              onClick={closeEditModal}
-              title="Close"
-            >
-              &times;
-            </button>
-            <h3 className="text-xl font-bold mb-4 text-center">Edit (Recreate) Container</h3>
-            <form onSubmit={(e) => handleEditSubmit(e, editContainer.server_id)}>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Name:</label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Image:</label>
-                <input
-                  type="text"
-                  value={editForm.image}
-                  onChange={e => setEditForm({ ...editForm, image: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Ports:</label>
-                <input
-                  type="text"
-                  value={editForm.ports}
-                  onChange={e => setEditForm({ ...editForm, ports: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 80:80, 5432:5432"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Env (JSON):</label>
-                <textarea
-                  value={editForm.env}
-                  onChange={e => setEditForm({ ...editForm, env: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
-                  placeholder='e.g. {"ENV_VAR": "value", "POSTGRES_PASSWORD": "mysecretpassword"}'
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block mb-1 font-semibold">Extra Args:</label>
-                <input
-                  type="text"
-                  value={editForm.extra_args}
-                  onChange={e => setEditForm({ ...editForm, extra_args: e.target.value })}
-                  className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. --restart unless-stopped"
-                />
-              </div>
-              {/* Переключатель Active */}
-              <div className="mb-6">
-                <label className="flex items-center cursor-pointer">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={editForm.is_active}
-                      onChange={e => setEditForm({ ...editForm, is_active: e.target.checked })}
-                    />
-                    <div className={`w-10 h-4 rounded-full shadow-inner ${editForm.is_active ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                    <div className={`dot absolute w-6 h-6 bg-gray-100 rounded-full shadow -left-1 -top-1 transition-transform ${editForm.is_active ? 'translate-x-6' : ''}`}></div>
-                  </div>
-                  <span className="ml-3 text-gray-700 font-medium">Active</span>
-                </label>
-              </div>
-              <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex justify-center items-center">
-                {containerSubmitting && <Spinner />}
-                {containerSubmitting ? 'Updating...' : 'Update Container'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      <EditContainerModal
+        showEditModal={showEditModal}
+        editContainer={editContainer}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        handleEditSubmit={handleEditSubmit}
+        containerSubmitting={containerSubmitting}
+        closeEditModal={closeEditModal}
+      />
 
-      {/* Confirmation Modal for Recreate */}
-      {showConfirm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-            <h3 className="text-xl font-bold mb-4 text-center">
-              Confirm Recreate
-            </h3>
-            <p className="mb-6 text-center">
-              Are you sure you want to recreate the container with the new data?
-            </p>
-            <div className="flex justify-around">
-              <button
-                onClick={() => {
-                  confirmEditSubmit(editContainer.server_id);
-                  setShowConfirm(false);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-              >
-                Confirm
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400 transition"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        showConfirm={showConfirm}
+        setShowConfirm={setShowConfirm}
+        confirmEditSubmit={confirmEditSubmit}
+        serverId={editContainer ? editContainer.server_id : null}
+      />
     </div>
   );
 };
