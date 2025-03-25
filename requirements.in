@@ -1,0 +1,12 @@
+uvicorn
+fastapi
+redis
+pyjwt
+passlib
+bcrypt
+asyncssh
+asyncpg
+pydantic-settings
+sqlalchemy
+python-multipart
+alembic
