@@ -6,7 +6,7 @@ from app.schemas.server import ServerOut
 from app.utils.logger import logger
 from app.models import ContainerOrm
 from app.repositories.container_repo import ContainerRepository
-from app.schemas.container import ContainerOut, ContainerCreate
+from app.schemas.container import ContainerOut, ContainerCreate, ContainerUpdate
 from app.services.base_service import BaseService
 from app.services.ssh_service import SSHService
 
@@ -97,6 +97,12 @@ class ContainerService(BaseService[ContainerRepository]):
         deleted_container = await super().delete(container.id)
         await self.invalidate_cache(server)
         return deleted_container
+
+    async def update_container_active_status(self, container: ContainerOut, server: ServerOut,
+                                             container_data: ContainerUpdate) -> ContainerOut:
+        updated_container = await super().update(container.id, container_data)
+        await self.invalidate_cache(server)
+        return updated_container
 
     async def create_record_from_docker_data(self, server: ServerOut, docker_data: Dict) -> None:
         data = {

@@ -3,8 +3,7 @@ from typing import List, Tuple
 
 
 from app.dependencies.services import get_container_service
-from app.dependencies.validate_ownership import validate_server_ownership, validate_container_ownership, \
-    validate_container_with_server
+from app.dependencies.validate_ownership import validate_server_ownership, validate_container_with_server
 
 from app.schemas.container import ContainerOut, ContainerCreate, ContainerUpdate, ContainerAction
 from app.schemas.container_status_responses import ContainerResponses
@@ -69,11 +68,12 @@ async def recreate_container(
 @router.put("/{container_id}")
 async def update_container_active_status(
         container_data: ContainerUpdate,
-        container: ContainerOut = Depends(validate_container_ownership),
+        container_with_server: Tuple[ServerOut, ContainerOut] = Depends(validate_container_with_server),
         container_service: ContainerService = Depends(get_container_service)
 ):
+    server, container = container_with_server
     try:
-        updated_container = await container_service.update(container.id, container_data)
+        updated_container = await container_service.update_container_active_status(container, server, container_data)
         return updated_container
     except Exception as e:
         raise HTTPException(
