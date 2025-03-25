@@ -9,7 +9,6 @@ Base = declarative_base()
 
 engine = create_async_engine(
     url=settings.database_url,
-    echo=True
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)

@@ -1,4 +1,5 @@
 import json
+import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict
 from app.schemas.server import ServerOut
@@ -9,10 +10,17 @@ from app.schemas.container import ContainerOut, ContainerCreate
 from app.services.base_service import BaseService
 from app.services.ssh_service import SSHService
 
+
 class ContainerService(BaseService[ContainerRepository]):
-    def __init__(self, db: AsyncSession, ssh_service: SSHService):
+    def __init__(self, db: AsyncSession, ssh_service: SSHService, redis_client: redis.Redis):
         super().__init__(ContainerRepository(db), ContainerOut)
         self.ssh_service = ssh_service
+        self.redis = redis_client
+
+    async def invalidate_cache(self, server: ServerOut):
+        await self.sync_containers(server)
+        cache_key = f"containers:{server.id}"
+        await self.redis.delete(cache_key)
 
     async def create_with_server(self, server: ServerOut, container: ContainerCreate) -> ContainerOut:
         docker_output = await self.ssh_service.create_container(
@@ -43,28 +51,49 @@ class ContainerService(BaseService[ContainerRepository]):
                                                     container.name)
             raise Exception(f"DB error: {str(db_err)}. The container on the remote server has been removed.")
 
+        await self.invalidate_cache(server)
         return record
 
     async def get_all_by_server(self, server_id: int) -> List[ContainerOut]:
+        cache_key = f"containers:{server_id}"
+        cached_data = await self.redis.get(cache_key)
+
+        if cached_data:
+            return [ContainerOut.model_validate(c) for c in json.loads(cached_data)]
+
         filters = [ContainerOrm.server_id == server_id]
-        return await super().get_all(*filters)
+        containers = await super().get_all(*filters)
+
+        await self.redis.set(cache_key, json.dumps([c.model_dump() for c in containers], default=str), ex=300)
+        return containers
 
     async def start_container(self, container: ContainerOut, server: ServerOut) -> str:
-        return await self.ssh_service.start_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
+        result = await self.ssh_service.start_container(server.host, server.ssh_user, server.ssh_private_key,
+                                                        container.name)
+        await self.invalidate_cache(server)
+        return result
 
     async def restart_container(self, container: ContainerOut, server: ServerOut) -> str:
-        return await self.ssh_service.restart_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
+        result = await self.ssh_service.restart_container(server.host, server.ssh_user, server.ssh_private_key,
+                                                          container.name)
+        await self.invalidate_cache(server)
+        return result
 
     async def stop_container(self, container: ContainerOut, server: ServerOut) -> str:
-        return await self.ssh_service.stop_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
+        result = await self.ssh_service.stop_container(server.host, server.ssh_user, server.ssh_private_key,
+                                                       container.name)
+        await self.invalidate_cache(server)
+        return result
 
     async def remove_container(self, container: ContainerOut, server: ServerOut) -> ContainerOut:
-        result = await self.ssh_service.remove_container(server.host, server.ssh_user, server.ssh_private_key, container.name)
-
+        result = await self.ssh_service.remove_container(server.host, server.ssh_user, server.ssh_private_key,
+                                                         container.name)
         if "Error" in result:
             raise Exception(f"Failed to remove container: {result}")
 
-        return await super().delete(container.id)
+        deleted_container = await super().delete(container.id)
+        await self.invalidate_cache(server)
+        return deleted_container
 
     async def create_record_from_docker_data(self, server: ServerOut, docker_data: Dict) -> None:
         data = {
@@ -99,6 +128,7 @@ class ContainerService(BaseService[ContainerRepository]):
             output = await self.ssh_service.get_containers(server.host, server.ssh_user, server.ssh_private_key)
             containers_data = self.parse_docker_output(output)
             await self.update_container_records(server, containers_data)
+            await self.invalidate_cache(server.id)
         except Exception as e:
             logger.error(f"Sync failed for server {server.id}: {str(e)}")
 

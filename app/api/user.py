@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from typing import Optional, Annotated
+from typing import Annotated
 
 from app.models import UserOrm
 from app.schemas.user import UserOut, UserCreate, UserUpdate

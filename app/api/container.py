@@ -36,17 +36,14 @@ async def get_server_containers(
         server: ServerOut = Depends(validate_server_ownership),
         container_service: ContainerService = Depends(get_container_service),
 ):
-    await container_service.sync_containers(server)
     return await container_service.get_all_by_server(server.id)
 
 
 @router.get("/{container_id}", response_model=ContainerOut)
 async def get_container(
         container_with_server: Tuple[ServerOut, ContainerOut] = Depends(validate_container_with_server),
-        container_service: ContainerService = Depends(get_container_service),
 ):
     server, container = container_with_server
-    await container_service.sync_containers(server)
     return container
 
 

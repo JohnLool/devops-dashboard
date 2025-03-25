@@ -1,8 +1,10 @@
 from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 
 from app.core.database import get_session
+from app.core.redis_client import get_redis
 from app.services.auth_service import AuthService
 from app.services.container_service import ContainerService
 from app.services.server_service import ServerService
@@ -28,7 +30,8 @@ async def get_server_service(
     return ServerService(db)
 
 async def get_container_service(
-        db: Annotated[AsyncSession, Depends(get_session)],
-        ssh_service: Annotated[SSHService, Depends(get_ssh_service)]
+    db: Annotated[AsyncSession, Depends(get_session)],
+    ssh_service: Annotated[SSHService, Depends(get_ssh_service)],
+    redis_client: Annotated[Redis, Depends(get_redis)]
 ) -> ContainerService:
-    return ContainerService(db, ssh_service)
+    return ContainerService(db, ssh_service, redis_client)
