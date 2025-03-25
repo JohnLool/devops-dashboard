@@ -21,6 +21,7 @@ class ContainerService(BaseService[ContainerRepository]):
         await self.sync_containers(server)
         cache_key = f"containers:{server.id}"
         await self.redis.delete(cache_key)
+        logger.info("SYNC COMPLETE AND CACHE INVALIDATED")
 
     async def create_with_server(self, server: ServerOut, container: ContainerCreate) -> ContainerOut:
         docker_output = await self.ssh_service.create_container(
@@ -59,12 +60,14 @@ class ContainerService(BaseService[ContainerRepository]):
         cached_data = await self.redis.get(cache_key)
 
         if cached_data:
+            logger.info("RETURNED CACHED DATA")
             return [ContainerOut.model_validate(c) for c in json.loads(cached_data)]
 
         filters = [ContainerOrm.server_id == server_id]
         containers = await super().get_all(*filters)
 
         await self.redis.set(cache_key, json.dumps([c.model_dump() for c in containers], default=str), ex=300)
+        logger.info("NEW CACHE ADDED")
         return containers
 
     async def start_container(self, container: ContainerOut, server: ServerOut) -> str:
@@ -128,7 +131,6 @@ class ContainerService(BaseService[ContainerRepository]):
             output = await self.ssh_service.get_containers(server.host, server.ssh_user, server.ssh_private_key)
             containers_data = self.parse_docker_output(output)
             await self.update_container_records(server, containers_data)
-            await self.invalidate_cache(server.id)
         except Exception as e:
             logger.error(f"Sync failed for server {server.id}: {str(e)}")
 
