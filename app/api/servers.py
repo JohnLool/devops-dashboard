@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
+
+from app.dependencies.validate_ownership import validate_server_ownership
 from app.schemas.server import ServerOut, ServerCreate, ServerUpdate
 from app.dependencies.services import get_server_service
 from app.dependencies.auth import get_current_user
@@ -35,32 +37,17 @@ async def create_server(
 
 @router.get("/{server_id}", response_model=ServerOut)
 async def get_server(
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
-        server_service: ServerService = Depends(get_server_service)
+        server: ServerOut = Depends(validate_server_ownership),
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
     return server
 
 @router.put("/{server_id}", response_model=ServerOut)
 async def update_server(
-        server_id: int,
         server_update: ServerUpdate,
-        current_user: UserOrm = Depends(get_current_user),
+        server: ServerOut = Depends(validate_server_ownership),
         server_service: ServerService = Depends(get_server_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    updated_server = await server_service.update(server_id, server_update)
+    updated_server = await server_service.update(server.id, server_update)
     if not updated_server:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,17 +57,10 @@ async def update_server(
 
 @router.delete("/{server_id}", response_model=ServerOut)
 async def delete_server(
-        server_id: int,
-        current_user: UserOrm = Depends(get_current_user),
+        server: ServerOut = Depends(validate_server_ownership),
         server_service: ServerService = Depends(get_server_service)
 ):
-    server = await server_service.get_by_id(server_id)
-    if not server or server.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Server not found."
-        )
-    deleted_server = await server_service.delete(server_id)
+    deleted_server = await server_service.delete(server.id)
     if not deleted_server:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

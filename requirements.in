@@ -10,3 +10,4 @@ pydantic-settings
 sqlalchemy
 python-multipart
 alembic
+starlette_exporter

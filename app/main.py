@@ -2,11 +2,12 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+# from starlette_exporter import PrometheusMiddleware, handle_metrics
 
 from app.api.user import router as user_router
 from app.api.servers import router as server_router
 from app.api.container import router as container_router
-from app.core.database import create_db, delete_db
+# from app.core.database import create_db, delete_db
 from app.exceptions import UniqueConstraintException
 
 
@@ -37,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# app.add_middleware(PrometheusMiddleware)
+# app.add_route("/metrics", handle_metrics)
 
 app.include_router(user_router)
 app.include_router(server_router)
