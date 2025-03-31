@@ -28,13 +28,12 @@ async def get_user_profile(current_user: UserOrm = Depends(get_current_user)):
 async def create_user(
         user: UserCreate,
         user_service: UserService = Depends(get_user_service),
-        current_user: UserOrm = Depends(get_current_user),
+        is_active: bool = Depends(is_user_active),
 ):
-    if current_user:
+    if is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User is already authenticated")
 
     return await user_service.create(user)
 
