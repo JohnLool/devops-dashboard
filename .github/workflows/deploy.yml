@@ -23,7 +23,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             cd devops-dashboard
             git pull origin main
-            docker-compose down
-            docker-compose up --build -d
-            docker system prune -f
+            docker-compose -f docker-compose.backend.yml down
+            docker-compose -f docker-compose.backend.yml up -d --build --remove-orphans
           EOF
