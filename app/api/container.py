@@ -35,7 +35,7 @@ async def get_server_containers(
         server: ServerOut = Depends(validate_server_ownership),
         container_service: ContainerService = Depends(get_container_service),
 ):
-    return await container_service.get_all_by_server(server.id)
+    return await container_service.get_all_by_server(server)
 
 
 @router.get("/{container_id}", response_model=ContainerOut)

@@ -55,15 +55,17 @@ class ContainerService(BaseService[ContainerRepository]):
         await self.invalidate_cache(server)
         return record
 
-    async def get_all_by_server(self, server_id: int) -> List[ContainerOut]:
-        cache_key = f"containers:{server_id}"
+    async def get_all_by_server(self, server: ServerOut) -> List[ContainerOut]:
+        cache_key = f"containers:{server.id}"
         cached_data = await self.redis.get(cache_key)
 
         if cached_data:
             logger.info("RETURNED CACHED DATA")
             return [ContainerOut.model_validate(c) for c in json.loads(cached_data)]
 
-        filters = [ContainerOrm.server_id == server_id]
+        filters = [ContainerOrm.server_id == server.id]
+
+        await self.sync_containers(server)
         containers = await super().get_all(*filters)
 
         await self.redis.set(cache_key, json.dumps([c.model_dump() for c in containers], default=str), ex=300)
@@ -117,7 +119,8 @@ class ContainerService(BaseService[ContainerRepository]):
         await super().create(data)
 
     async def update_container_records(self, server: ServerOut, docker_data: List[Dict]) -> None:
-        existing = {c.docker_id: c for c in await self.get_all_by_server(server.id)}
+        filters = [ContainerOrm.server_id == server.id]
+        existing = {c.docker_id: c for c in await super().get_all(*filters)}
         for container_data in docker_data:
             docker_id = container_data.get("ID")
             if not docker_id:
