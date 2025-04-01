@@ -110,9 +110,9 @@ class BaseRepository(AbstractRepository[Model], Generic[Model]):
             return None
 
         logger.info(f"Deleting {self.model.__name__} with id {item_id}")
-        item.deleted = True
 
         try:
+            item.deleted = True
             await self.session.commit()
             await self.session.refresh(item)
             return item

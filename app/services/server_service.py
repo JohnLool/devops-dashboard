@@ -20,3 +20,7 @@ class ServerService(BaseService[ServerRepository]):
     async def get_all_by_owner(self, owner_id: int) -> List[ServerOut]:
         filters = [ServerOrm.owner_id == owner_id]
         return await super().get_all(*filters)
+
+    async def cascade_soft_delete(self, server_id: int) -> Optional[ServerOut]:
+        server = await self.repository.soft_delete_with_containers(server_id)
+        return self.schema_out.model_validate(server) if server else None

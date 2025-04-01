@@ -60,7 +60,7 @@ async def delete_server(
         server: ServerOut = Depends(validate_server_ownership),
         server_service: ServerService = Depends(get_server_service)
 ):
-    deleted_server = await server_service.delete(server.id)
+    deleted_server = await server_service.cascade_soft_delete(server.id)
     if not deleted_server:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
