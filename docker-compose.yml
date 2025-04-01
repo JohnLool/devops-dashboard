@@ -11,8 +11,6 @@ services:
       - redis
     env_file:
       - .env
-    volumes:
-      - .:/app
 
   db:
     image: postgres:15
