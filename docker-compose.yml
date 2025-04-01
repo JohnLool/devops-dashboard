@@ -4,6 +4,7 @@ services:
   fastapi:
     build: .
     container_name: fastapi_app
+    restart: always
     ports:
       - "8000:8000"
     depends_on:
@@ -11,26 +12,32 @@ services:
       - redis
     env_file:
       - .env
+    networks:
+      - app_network
 
   db:
     image: postgres:15
     container_name: postgres_db
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
 
   redis:
     image: redis:latest
     container_name: redis_cache
     restart: always
-    ports:
-      - "6379:6379"
+    networks:
+      - app_network
 
 volumes:
   postgres_data:
+
+networks:
+  app_network:
+    external: true
