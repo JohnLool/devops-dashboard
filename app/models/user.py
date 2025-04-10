@@ -20,3 +20,4 @@ class UserOrm(Base):
     deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     servers: Mapped[list["ServerOrm"]] = relationship("ServerOrm", back_populates="owner", cascade="all, delete-orphan")
+    refresh_tokens: Mapped[list["RefreshTokenOrm"]] = relationship("RefreshTokenOrm", back_populates="user", cascade="all, delete-orphan")
