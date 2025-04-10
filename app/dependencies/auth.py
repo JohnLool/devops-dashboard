@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 
 from app.models.user import UserOrm
@@ -23,7 +23,7 @@ async def get_current_user(
 
         )
 
-    payload = await auth_service.verify_token(token)
+    payload = await auth_service.verify_access_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -34,11 +34,28 @@ async def get_current_user(
 
     return await user_service.get_by_username_orm(payload.get("sub"))
 
-async def is_user_active(
+async def is_access_token_alive(
         token: Optional[str] = Depends(oauth2_user_scheme),
         auth_service: AuthService = Depends(get_auth_service),
 ) -> bool:
-    if token and await auth_service.verify_token(token) is not None:
+    if token and await auth_service.verify_access_token(token) is not None:
         return True
     else:
         return False
+
+async def get_refresh_token(x_refresh_token: str = Header(...)):
+    return x_refresh_token
+
+async def get_refresh_token_payload(
+    token: str = Depends(get_refresh_token),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    payload = await auth_service.verify_refresh_token(token)
+    if token and payload is not None:
+        return payload
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials or token expired",
+
+        )

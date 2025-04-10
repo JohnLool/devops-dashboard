@@ -5,6 +5,7 @@ from redis.asyncio import Redis
 
 from app.core.database import get_session
 from app.core.redis_client import get_redis
+from app.repositories.auth_token_repo import AuthTokenRepository
 from app.services.auth_service import AuthService
 from app.services.container_service import ContainerService
 from app.services.server_service import ServerService
@@ -12,8 +13,16 @@ from app.services.ssh_service import SSHService
 from app.services.user_service import UserService
 
 
-async def get_auth_service() -> AuthService:
-    return AuthService()
+async def get_auth_token_repository(
+    db: Annotated[AsyncSession, Depends(get_session)]
+) -> AuthTokenRepository:
+    return AuthTokenRepository(db)
+
+async def get_auth_service(
+    auth_token_repo: Annotated[AuthTokenRepository,
+    Depends(get_auth_token_repository)]
+) -> AuthService:
+    return AuthService(auth_token_repo)
 
 async def get_ssh_service() -> SSHService:
     return SSHService()

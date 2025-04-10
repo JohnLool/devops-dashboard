@@ -2,6 +2,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.user_repo import UserRepository
+from app.schemas.token import Token
 from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.services.auth_service import AuthService
 from app.services.base_service import BaseService
@@ -57,8 +58,14 @@ class UserService(BaseService[UserRepository]):
 
         return user
 
-    async def create_user_token(self, user) -> Optional[str]:
+    async def create_user_access_token(self, user) -> Optional[Token]:
         if not user:
             return None
         token_data = {"sub": user.username, "role": "user", "id": user.id}
         return await self.auth_service.create_access_token(token_data)
+
+    async def create_user_refresh_token(self, user) -> Optional[Token]:
+        if not user:
+            return None
+        token_data = {"sub": user.username, "role": "user", "id": user.id}
+        return await self.auth_service.create_refresh_token(token_data)
