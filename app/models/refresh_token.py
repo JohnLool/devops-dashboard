@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -10,6 +10,8 @@ from app.core.database import Base
 
 class RefreshTokenOrm(Base):
     __tablename__ = "refresh_tokens"
+    __table_args__ = (UniqueConstraint('user_id', name='uq_refresh_tokens_user_id'),)
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     token: Mapped[str] = mapped_column(String, unique=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))

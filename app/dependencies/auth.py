@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import OAuth2PasswordBearer
 
 from app.models.user import UserOrm
@@ -43,8 +43,13 @@ async def is_access_token_alive(
     else:
         return False
 
-async def get_refresh_token(x_refresh_token: str = Header(...)):
-    return x_refresh_token
+async def get_refresh_token(refresh_token: Optional[str] = Cookie(None)):
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token missing in cookie"
+        )
+    return refresh_token
 
 async def get_refresh_token_payload(
     token: str = Depends(get_refresh_token),

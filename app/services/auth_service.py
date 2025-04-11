@@ -48,15 +48,17 @@ class AuthService:
             "expires_at": refresh_expire,
         }
 
-        await self.auth_token_repo.delete_by_user_id(refresh_data["id"])
-        await self.auth_token_repo.create(refresh_token_to_db)
+        await self.auth_token_repo.upsert_refresh_token(refresh_token_to_db)
 
-        token = {
+        token_obj = {
             "token": refresh_token,
             "token_type": "X-Refresh-Token",
         }
 
-        return Token.model_validate(token)
+        return Token.model_validate(token_obj)
+
+    async def delete_refresh_token_in_db(self, user_id: int) -> None:
+        return await self.auth_token_repo.delete_by_user_id(user_id)
 
     @staticmethod
     async def verify_access_token(token: str):
@@ -78,7 +80,6 @@ class AuthService:
                 return payload
         except PyJWTError:
             return None
-
 
     @staticmethod
     async def hash_password(password: str) -> str:

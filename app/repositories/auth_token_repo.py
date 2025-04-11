@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,5 +28,25 @@ class AuthTokenRepository(BaseRepository[RefreshTokenOrm]):
             return None
         except SQLAlchemyError as e:
             logger.error(f"Error deleting {self.model.__name__} with id {token.id}: {e}")
+            await self.session.rollback()
+            raise
+
+    # Renews refresh token if there is a record for this user_id,
+    # or inserts a new one if it is not.
+    async def upsert_refresh_token(self, token_data: dict):
+        try:
+            stmt = insert(RefreshTokenOrm).values(**token_data)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["user_id"],
+                set_={
+                    "token": token_data["token"],
+                    "expires_at": token_data["expires_at"],
+                    "deleted": False
+                }
+            )
+            await self.session.execute(stmt)
+            await self.session.commit()
+        except SQLAlchemyError as e:
+            logger.error(f"Error updating/inserting {self.model.__name__}: {e}")
             await self.session.rollback()
             raise
